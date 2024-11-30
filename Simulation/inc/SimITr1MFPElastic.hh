@@ -37,14 +37,14 @@ public:
     const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
     return std::max(1.0E-20, fDataPerMaterial[imat].GetValue(e));
   }
-  double GetITr1MFPPerDensity(double ekin, double logekin, int imat) {
-    // make sure that E_min <= ekin < E_max
-    const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
-    return std::max(1.0E-20, fDataPerMaterial[imat].GetValue(e, logekin));
-  }
-  double GetITr1MFPPerDensity(double ekin, int ilow, int imat) {
-    return std::max(1.0E-20, fDataPerMaterial[imat].GetValueAt(ekin, ilow));
-  }
+  //double GetITr1MFPPerDensity(double ekin, double logekin, int imat) {
+  //  // make sure that E_min <= ekin < E_max
+  //  const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
+  //  return std::max(1.0E-20, fDataPerMaterial[imat].GetValue(e, logekin));
+  //}
+  //double GetITr1MFPPerDensity(double ekin, int ilow, int imat) {
+  //  return std::max(1.0E-20, fDataPerMaterial[imat].GetValueAt(ekin, ilow));
+  //}
 
 
 private:

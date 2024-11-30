@@ -8,16 +8,16 @@
 // length information.
 class Track {
 public:
-  double fPosition[3];   // rx, ry, rz
-  double fDirection[3];  // dx, dy, dz normalised to 1
+  float fPosition[3];   // rx, ry, rz
+  float fDirection[3];  // dx, dy, dz normalised to 1
   int    fBoxIndx[3];    // x,y and z indices of the current box
 
   int    fType;          // -1 for e-, 0 for gamma and +1 for e+
   int    fMatIndx;       // material index
-  double fTrackLength;   // cummulative track length
-  double fEkin;          // kinetic energy
-  double fStepLenght;    // current step length
-  double fEdep;          // energy deposit in the given step
+  float fTrackLength;   // cummulative track length
+  float fEkin;          // kinetic energy
+  float fStepLenght;    // current step length
+  float fEdep;          // energy deposit in the given step
   //
   Track() {
     Reset();

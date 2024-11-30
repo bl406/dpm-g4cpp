@@ -69,7 +69,7 @@ public:
   // moving the point to the next voxel then the distance to the boundary is
   // computed in this new volume. The `iVoxel` voxel index triplet is always set
   // as well.
-  double DistanceToBoundary(double* rLocation, double* dDirection, int* iVoxel);
+  float DistanceToBoundary(float* rLocation, float* dDirection, int* iVoxel);
 
 
   // Returns with the material index based on the input `iVoxel` voxel index

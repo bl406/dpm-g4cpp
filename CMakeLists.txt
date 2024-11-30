@@ -55,7 +55,8 @@ file ( GLOB validation_sources
 #----------------------------------------------------------------------------
 # Locate headers
 #
-include_directories ( ${Geant4_INCLUDE_DIR}
+include_directories ( ${CMAKE_SOURCE_DIR}/getopt
+                      ${Geant4_INCLUDE_DIR}
                       ${CMAKE_SOURCE_DIR}
                       ${CMAKE_SOURCE_DIR}/DataInit/inc
                       ${CMAKE_SOURCE_DIR}/Utils/inc
@@ -66,21 +67,29 @@ include_directories ( ${Geant4_INCLUDE_DIR}
 #----------------------------------------------------------------------------
 # Build target
 #
+
+link_directories(${CMAKE_BINARY_DIR})
+
+add_library(getopt SHARED ${CMAKE_SOURCE_DIR}/getopt/getopt.c)
+target_compile_definitions(getopt PRIVATE EXPORTS_GETOPT)
+
+set(GETOPT_LIBRARIES getopt.lib)
+
 add_executable ( dpm_GenerateData ${CMAKE_SOURCE_DIR}/dpm_GenerateData.cc ${cxx_sources_GEN})
 target_link_libraries (dpm_GenerateData  ${Geant4_LIBRARIES})
 
 add_executable ( dpm_Simulate ${CMAKE_SOURCE_DIR}/dpm_Simulate.cc ${cxx_sources_SIM})
-target_link_libraries (dpm_Simulate)
+target_link_libraries (dpm_Simulate ${GETOPT_LIBRARIES})
 
 ## add model level test for bremsstrahlung
 add_executable ( test_brem ${CMAKE_SOURCE_DIR}/test_brem.cc ${cxx_sources_SIM})
-target_link_libraries (test_brem)
+target_link_libraries (test_brem ${GETOPT_LIBRARIES})
 
 add_library(validation STATIC ${validation_sources} ${cxx_sources_SIM})
-target_link_libraries(validation)
+target_link_libraries(validation ${GETOPT_LIBRARIES})
 
 add_executable(modeltests model_validation.cpp)
-target_link_libraries (modeltests validation)
+target_link_libraries (modeltests validation ${GETOPT_LIBRARIES})
 
 install (TARGETS validation DESTINATION ${CMAKE_SOURCE_DIR}/lib)
 install (FILES  ${CMAKE_SOURCE_DIR}/modelValidationTests/inc/testAPI.h DESTINATION ${CMAKE_SOURCE_DIR}/lib)

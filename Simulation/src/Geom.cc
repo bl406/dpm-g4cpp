@@ -17,8 +17,8 @@ Geom::Geom(double lbox, SimMaterialData* matData, int geomIndex)
 }
 
 
-double Geom::DistanceToBoundary(double* r, double* v, int* i) {
-  static double kHalfTolerance = 0.5*kTolerance;
+float Geom::DistanceToBoundary(float* r, float* v, int* i) {
+  static float kHalfTolerance = 0.5*kTolerance;
   //
   // Let's say that kExtent is the max extent of our geometry except the -z
   // direction in which it's only half box
@@ -33,14 +33,14 @@ double Geom::DistanceToBoundary(double* r, double* v, int* i) {
   i[2] = std::floor((r[2]+fLHalfBox)*fInvLBox);
   //
   // transform the r(rx,ry,rz) into the current local box
-  const double trX = r[0]-i[0]*fLBox;
-  const double trY = r[1]-i[1]*fLBox;
-  const double trZ = r[2]-i[2]*fLBox;
+  const float trX = r[0]-i[0]*fLBox;
+  const float trY = r[1]-i[1]*fLBox;
+  const float trZ = r[2]-i[2]*fLBox;
   //
   // compute the distance to boundary in the local box (centered around 0,0,0)
-  double pdist = 0.0;
-  double stmp  = 0.0;
-  double snext = 1.0E+20;
+  float pdist = 0.0;
+  float stmp  = 0.0;
+  float snext = 1.0E+20;
   //
   // calculate x
   if (v[0] > 0.0) {

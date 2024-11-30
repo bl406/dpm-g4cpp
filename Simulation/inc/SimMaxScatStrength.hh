@@ -41,14 +41,14 @@ public:
     const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
     return std::max(1.0E-20, fData.GetValue(e));
   }
-  double GetMaxScatStrength(double ekin, double logekin) {
-    // make sure that E_min <= ekin < E_max
-    const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
-    return std::max(1.0E-20, fData.GetValue(e, logekin));
-  }
-  double GetMaxScatStrength(double ekin, int ilow) {
-    return std::max(1.0E-20, fData.GetValueAt(ekin, ilow));
-  }
+  //double GetMaxScatStrength(double ekin, double logekin) {
+  //  // make sure that E_min <= ekin < E_max
+  //  const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
+  //  return std::max(1.0E-20, fData.GetValue(e, logekin));
+  //}
+  //double GetMaxScatStrength(double ekin, int ilow) {
+  //  return std::max(1.0E-20, fData.GetValueAt(ekin, ilow));
+  //}
 
 
 private:

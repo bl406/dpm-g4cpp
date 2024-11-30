@@ -40,18 +40,18 @@ public:
     const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
     return std::max(1.0E-20, fDataPerMaterial[imat].GetValue(e));
   }
-  double GetDEDXPerDensity(double ekin, double logekin, int imat) {
-    // check vacuum case i.e. imat = -1
-    if (imat<0) return 1.0E-20;
-    // make sure that E_min <= ekin < E_max
-    const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
-    return std::max(1.0E-20, fDataPerMaterial[imat].GetValue(e, logekin));
-  }
-  double GetDEDXPerDensity(double ekin, int ilow, int imat) {
-    // check vacuum case i.e. imat = -1
-    if (imat<0) return 1.0E-20;
-    return std::max(1.0E-20, fDataPerMaterial[imat].GetValueAt(ekin, ilow));
-  }
+  //double GetDEDXPerDensity(double ekin, double logekin, int imat) {
+  //  // check vacuum case i.e. imat = -1
+  //  if (imat<0) return 1.0E-20;
+  //  // make sure that E_min <= ekin < E_max
+  //  const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
+  //  return std::max(1.0E-20, fDataPerMaterial[imat].GetValue(e, logekin));
+  //}
+  //double GetDEDXPerDensity(double ekin, int ilow, int imat) {
+  //  // check vacuum case i.e. imat = -1
+  //  if (imat<0) return 1.0E-20;
+  //  return std::max(1.0E-20, fDataPerMaterial[imat].GetValueAt(ekin, ilow));
+  //}
 
 
 private:

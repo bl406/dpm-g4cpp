@@ -24,13 +24,13 @@ public:
   // additional infomation stored in the material file:
   //
   // secondary e- and gamma production threshold in [MeV]
-  double                     fElectronCut;
-  double                     fGammaCut;
+  float                     fElectronCut;
+  float                     fGammaCut;
 
   // MSC max-step lenght parameters
-  double                     fMSCStepParSLow;
-  double                     fMSCStepParSHigh;
-  double                     fMSCStepParEcross;
+  float                     fMSCStepParSLow;
+  float                     fMSCStepParSHigh;
+  float                     fMSCStepParEcross;
 
   //
   // data per material:
@@ -38,11 +38,11 @@ public:
   int                        fNumMaterial;
   // name and density in [g/cm3]
   std::vector<std::string>   fMaterialName;
-  std::vector<double>        fMaterialDensity; // in [g/cm3]
+  std::vector<float>        fMaterialDensity; // in [g/cm3]
 
   // the material scaling factor for the Moller inverse-mf: [A/(Z\rho/)]_ref [(Z\rho)/A]_actual
   // or more exactly its [A/Z)]_ref [(Z)/A]_actual part
-  std::vector<double>        fMollerIMFPScaling;
+  std::vector<float>        fMollerIMFPScaling;
 
 };
 

@@ -41,7 +41,8 @@ class Track;
 // The resulted depth dose histogram of the simulation is written into the `hist.sim`
 // file at the termination of the simulation.
 //
-void  Simulate(int nprimary, double eprimary, bool iselectron, double lbox, SimMaterialData& matData, SimElectronData& elData, SimPhotonData& phData, int geomIndex);
+void  Simulate(int nprimary, float eprimary, bool iselectron, float lbox, 
+	SimMaterialData& matData, SimElectronData& elData, SimPhotonData& phData, int geomIndex);
 
 
 
@@ -50,7 +51,8 @@ void  Simulate(int nprimary, double eprimary, bool iselectron, double lbox, SimM
 // 2. a discrete ioni interaction take place
 // 3. MSC hinge or end of MSC step take place
 // 4. the electron energy drops below zero so stops
-int   KeepTrackingElectron(SimElectronData& elData, SimMaterialData& matData, Geom& geom, Track& track, double& numElTr1MFP, double& numMollerMFP, double invMollerMFP, double& numBremMFP);
+int   KeepTrackingElectron(SimElectronData& elData, SimMaterialData& matData, Geom& geom, Track& track, 
+	float& numElTr1MFP, float& numMollerMFP, float invMollerMFP, float& numBremMFP);
 
 //
 // Keeps tracking a photon till one of the following condition is reached:
@@ -72,8 +74,8 @@ void   KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom&
 // original direction, the real original direction [u1,u2,u3] in the lab frame
 // needs to be accounted and the final new direction, i.e. in the lab frame is
 // computed.
-void   RotateToLabFrame(double &u, double &v, double &w, double u1, double u2, double u3);
-void   RotateToLabFrame(double* dir, double* refdir);
+void   RotateToLabFrame(float&u, float&v, float&w, float u1, float u2, float u3);
+void   RotateToLabFrame(float* dir, float* refdir);
 
 // Auxiliary funtion for bremsstrahlung final state generation.
 void   PerformBrem(Track& track, SimSBTables* theSBTable);
@@ -84,7 +86,7 @@ void   PerformMoller(Track& track, SimMollerTables* theMollerTable);
 //       while it needs to be computed at the e- energy at the pre-step point.
 //       The pre-step point kinetic energy is `ekin0` while the current kinetic
 //       energy is `track.fEkin`.
-void PerformMSCAngularDeflection(Track& track, double ekin0, SimGSTables* theGSTables);
+void PerformMSCAngularDeflection(Track& track, float ekin0, SimGSTables* theGSTables);
 
 
 // Auxiliary funtion for simple e+e- annihilation
