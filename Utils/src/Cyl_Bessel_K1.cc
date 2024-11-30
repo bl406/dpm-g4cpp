@@ -2,8 +2,12 @@
 #include "Cyl_Bessel_K1.hh"
 
 #include <iostream>
+#ifdef WIN32
+#define _USE_MATH_DEFINES
+#include <math.h>
+#else
 #include <cmath>
-
+#endif
 namespace GSL {
 
 static inline int cheb_eval_e(const cheb_series* cs, const double x, sf_result* result) {
