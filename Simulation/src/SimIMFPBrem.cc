@@ -3,6 +3,27 @@
 #include <cstdio>
 #include <iostream>
 
+float SimIMFPBrem::eStep;
+float SimIMFPBrem::eMin;
+float SimIMFPBrem::eMax;
+int SimIMFPBrem::ne;
+int SimIMFPBrem::nmat;
+std::vector<float> SimIMFPBrem::IMFPBremTable;
+
+void SimIMFPBrem::initializeIMFPBremTable()
+{
+    SimIMFPBrem::ne = 500;
+    SimIMFPBrem::nmat = fNumMaterial;
+    SimIMFPBrem::eMin = fEmin;
+    SimIMFPBrem::eMax = fEmax;
+    SimIMFPBrem::eStep = (fEmax - fEmin) / (ne - 1);
+    SimIMFPBrem::IMFPBremTable.resize(ne * nmat);
+    for (int i = 0; i < nmat; i++) {
+        for (int j = 0; j < ne; j++) {
+            IMFPBremTable[i * ne + j] = GetIMFPPerDensity(double(eMin + j * eStep), i);
+        }
+    }
+}
 
 SimIMFPBrem::SimIMFPBrem () {
   // all will be set at LoadData()
@@ -58,4 +79,6 @@ void  SimIMFPBrem::LoadData(const std::string& dataDir, int verbose) {
     }
   }
   fclose(f);
+
+  initializeIMFPBremTable();
 }

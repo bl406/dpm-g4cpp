@@ -23,20 +23,32 @@
 #include "SimDataSpline.hh"
 
 class SimITr1MFPElastic {
-
+    static float eStep, eMin, eMax;
+    static int ne, nmat;
+	static std::vector<float> ITr1MFPTable;
+    
 public:
-
+    
   SimITr1MFPElastic();
  ~SimITr1MFPElastic() {}
 
   void  LoadData(const std::string& dataDir, int verbose);
 
   // the inverse Tr1-MFP in [1/mm] [cm3/g] scalled units
+  float GetITr1MFPPerDensity(float ekin, int imat) {
+      // make sure that E_min <= ekin < E_max
+      const float e = std::min(SimITr1MFPElastic::eMax - 1.0E-6f, std::max(SimITr1MFPElastic::eMin, ekin));
+	  int index = (int)((e - SimITr1MFPElastic::eMin) / SimITr1MFPElastic::eStep);
+	  float weight = (e - SimITr1MFPElastic::eMin - index * SimITr1MFPElastic::eStep) / SimITr1MFPElastic::eStep;
+	  return (1.0f - weight) * ITr1MFPTable[imat * ne + index] + weight * ITr1MFPTable[imat * ne + index + 1];     
+  }
+
   double GetITr1MFPPerDensity(double ekin, int imat) {
     // make sure that E_min <= ekin < E_max
     const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
     return std::max(1.0E-20, fDataPerMaterial[imat].GetValue(e));
   }
+ 
   //double GetITr1MFPPerDensity(double ekin, double logekin, int imat) {
   //  // make sure that E_min <= ekin < E_max
   //  const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
@@ -46,8 +58,9 @@ public:
   //  return std::max(1.0E-20, fDataPerMaterial[imat].GetValueAt(ekin, ilow));
   //}
 
-
 private:
+
+   void initializeITr1MFPTable();
 
   int             fNumMaterial;
 

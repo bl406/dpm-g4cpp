@@ -22,7 +22,9 @@
 #include "SimDataSpline.hh"
 
 class SimMaxScatStrength {
-
+    static float eStep, eMin, eMax;
+    static int ne;
+    static std::vector<float> MaxScatStrengthTable;
 public:
 
   SimMaxScatStrength() {}
@@ -36,11 +38,21 @@ public:
   // determined by the `slow` and `shigh` parameters with the smooth transition
   // around `ecross`.
   //
+  float GetMaxScatStrength(float ekin) {
+      // make sure that E_min <= ekin < E_max
+      const float e = std::min(SimMaxScatStrength::eMax - 1.0E-6f, std::max(SimMaxScatStrength::eMin, ekin));
+	  int index = (int)((e - SimMaxScatStrength::eMin) / SimMaxScatStrength::eStep);
+	  float weight = (e - SimMaxScatStrength::eMin - index * SimMaxScatStrength::eStep) / SimMaxScatStrength::eStep;
+	  return (1.0f - weight) * MaxScatStrengthTable[index] + weight * MaxScatStrengthTable[index + 1];
+  }
+
   double GetMaxScatStrength(double ekin) {
     // make sure that E_min <= ekin < E_max
     const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
     return std::max(1.0E-20, fData.GetValue(e));
   }
+
+
   //double GetMaxScatStrength(double ekin, double logekin) {
   //  // make sure that E_min <= ekin < E_max
   //  const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
@@ -52,6 +64,7 @@ public:
 
 
 private:
+   void initializeMaxScatStrengthTable();
 
   // store the min/max kinetic enrgy values and the correspnding IMFP values
   double          fEmin;

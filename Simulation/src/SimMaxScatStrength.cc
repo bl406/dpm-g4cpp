@@ -3,6 +3,24 @@
 #include <cstdio>
 #include <iostream>
 
+float SimMaxScatStrength::eStep;
+float SimMaxScatStrength::eMin;
+float SimMaxScatStrength::eMax;
+int SimMaxScatStrength::ne;
+std::vector<float> SimMaxScatStrength::MaxScatStrengthTable;
+
+void SimMaxScatStrength::initializeMaxScatStrengthTable()
+{
+    SimMaxScatStrength::ne = 500;
+	SimMaxScatStrength::eMin = fEmin;
+	SimMaxScatStrength::eMax = fEmax;
+	SimMaxScatStrength::eStep = (fEmax - fEmin) / (ne - 1);
+	SimMaxScatStrength::MaxScatStrengthTable.resize(ne);
+	for (int j = 0; j < ne; j++) {
+		MaxScatStrengthTable[j] = GetMaxScatStrength(double(eMin + j * eStep));
+	}
+}
+
 void  SimMaxScatStrength::LoadData(const std::string& dataDir, int verbose) {
   char name[512];
   sprintf(name, "%s/el_scatStrength.dat", dataDir.c_str());
@@ -40,4 +58,6 @@ void  SimMaxScatStrength::LoadData(const std::string& dataDir, int verbose) {
     if (i==numData-1) { fEmax = ekin; }
   }
   fclose(f);
+
+  initializeMaxScatStrengthTable();
 }

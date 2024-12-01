@@ -3,6 +3,20 @@
 #include <cstdio>
 #include <iostream>
 
+void SimStoppingPower::initializeStoppingPowerTable()
+{
+    SimStoppingPower::ne = 500;
+    SimStoppingPower::nmat = fNumMaterial;
+    SimStoppingPower::eMin = fEmin;
+    SimStoppingPower::eMax = fEmax;
+    SimStoppingPower::eStep = (fEmax - fEmin) / (ne - 1);
+    SimStoppingPower::StoppingPowerTable.resize(ne * nmat);
+    for (int i = 0; i < nmat; i++) {
+        for (int j = 0; j < ne; j++) {
+            StoppingPowerTable[i * ne + j] = GetDEDXPerDensity(double(eMin + j * eStep), i);
+        }
+    }
+}
 
 SimStoppingPower::SimStoppingPower () {
   // all will be set at LoadData()
@@ -58,4 +72,6 @@ void  SimStoppingPower::LoadData(const std::string& dataDir, int verbose) {
     }
   }
   fclose(f);
+
+  initializeStoppingPowerTable();
 }

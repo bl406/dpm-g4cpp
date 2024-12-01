@@ -24,7 +24,9 @@
 #include "SimDataSpline.hh"
 
 class SimStoppingPower {
-
+    static float eStep, eMin, eMax;
+    static int ne, nmat;
+    static std::vector<float> StoppingPowerTable;
 public:
 
   SimStoppingPower();
@@ -33,6 +35,16 @@ public:
   void  LoadData(const std::string& dataDir, int verbose);
 
   // the stopping power in [MeV/mm] [cm3/g] scalled units
+  float GetDEDXPerDensity(float ekin, int imat) {
+      // check vacuum case i.e. imat = -1
+      if (imat < 0) return 1.0E-20;
+      // make sure that E_min <= ekin < E_max
+      const float e = std::min(eMax - 1.0E-6f, std::max(eMin, ekin));
+	  int index = (int)((e - eMin) / eStep);
+	  float weight = (e - eMin - index * eStep) / eStep;
+	  return (1.0f - weight) * StoppingPowerTable[imat * ne + index] + weight * StoppingPowerTable[imat * ne + index + 1];
+  }
+
   double GetDEDXPerDensity(double ekin, int imat) {
     // check vacuum case i.e. imat = -1
     if (imat<0) return 1.0E-20;
@@ -55,6 +67,7 @@ public:
 
 
 private:
+    void initializeStoppingPowerTable();
 
   // number of materials (dE/dx data are used for the given material)
   int     fNumMaterial;

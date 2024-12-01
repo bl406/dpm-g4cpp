@@ -3,6 +3,23 @@
 #include <cstdio>
 #include <iostream>
 
+float SimIMFPMoller::eStep;
+float SimIMFPMoller::eMin;
+float SimIMFPMoller::eMax;
+int SimIMFPMoller::ne;
+std::vector<float> SimIMFPMoller::IMFPMollerTable;
+
+void SimIMFPMoller::initializeIMFPMollerTable() {
+	SimIMFPMoller::ne = 500;
+	SimIMFPMoller::eMin = fEmin;
+	SimIMFPMoller::eMax = fEmax;
+	SimIMFPMoller::eStep = (fEmax - fEmin) / (ne - 1);
+	SimIMFPMoller::IMFPMollerTable.resize(ne);
+	for (int j = 0; j < ne; j++) {
+		IMFPMollerTable[j] = GetIMFPPerDensity(double(eMin + j * eStep));
+	}
+}
+
 void  SimIMFPMoller::LoadData(const std::string& dataDir, int verbose) {
   char name[512];
   sprintf(name, "%s/imfp_moller.dat", dataDir.c_str());
@@ -40,4 +57,6 @@ void  SimIMFPMoller::LoadData(const std::string& dataDir, int verbose) {
     if (i==numData-1) { fEmax = ekin; }
   }
   fclose(f);
+
+  initializeIMFPMollerTable();
 }

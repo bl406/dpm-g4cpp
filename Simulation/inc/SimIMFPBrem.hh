@@ -23,7 +23,9 @@
 #include "SimDataSpline.hh"
 
 class SimIMFPBrem {
-
+    static float eStep, eMin, eMax;
+    static int ne, nmat;
+    static std::vector<float> IMFPBremTable;
 public:
 
   SimIMFPBrem();
@@ -32,6 +34,16 @@ public:
   void  LoadData(const std::string& dataDir, int verbose);
 
   // the inverse MFP in [1/mm] [cm3/g] scalled units
+  float GetIMFPPerDensity(float ekin, int imat) {
+      // check vacuum case i.e. imat = -1
+      if (imat < 0) return 1.0E-20;
+
+      // make sure that E_min <= ekin < E_max
+      const float e = std::min(SimIMFPBrem::eMax - 1.0E-6f, std::max(SimIMFPBrem::eMin, ekin));
+      int index = (int)((e - SimIMFPBrem::eMin) / SimIMFPBrem::eStep);
+      float weight = (e - SimIMFPBrem::eMin - index * SimIMFPBrem::eStep) / SimIMFPBrem::eStep;
+      return (1.0f - weight) * IMFPBremTable[imat * ne + index] + weight * IMFPBremTable[imat * ne + index + 1];
+  }
   double GetIMFPPerDensity(double ekin, int imat) {
     // check vacuum case i.e. imat = -1
     if (imat<0) return 1.0E-20;
@@ -52,8 +64,8 @@ public:
   //  return std::max(1.0E-20, fDataPerMaterial[imat].GetValueAt(ekin, ilow));
   //}
 
-
 private:
+    void initializeIMFPBremTable();
 
   // number of materials (brem data are used for the given material)
   int     fNumMaterial;

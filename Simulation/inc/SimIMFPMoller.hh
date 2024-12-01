@@ -23,7 +23,9 @@
 #include "SimDataSpline.hh"
 
 class SimIMFPMoller {
-
+    static float eStep, eMin, eMax;
+    static int ne;
+    static std::vector<float> IMFPMollerTable;
 public:
 
   SimIMFPMoller() {}
@@ -32,11 +34,21 @@ public:
   void  LoadData(const std::string& dataDir, int verbose);
 
   // the inverse MFP in [1/mm] [cm3/g] scalled units
+  float GetIMFPPerDensity(float ekin) {
+	  // make sure that E_min <= ekin < E_max
+	  const float e = std::min(SimIMFPMoller::eMax - 1.0E-6f, std::max(SimIMFPMoller::eMin, ekin));
+	  int index = (int)((e - SimIMFPMoller::eMin) / SimIMFPMoller::eStep);
+	  float weight = (e - SimIMFPMoller::eMin - index * SimIMFPMoller::eStep) / SimIMFPMoller::eStep;
+	  return (1.0f - weight) * IMFPMollerTable[index] + weight * IMFPMollerTable[index + 1];
+  }
+
   double GetIMFPPerDensity(double ekin) {
     // make sure that E_min <= ekin < E_max
     const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
     return std::max(1.0E-20, fData.GetValue(e));
   }
+
+
   //double GetIMFPPerDensity(double ekin, double logekin) {
   //  // make sure that E_min <= ekin < E_max
   //  const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
@@ -48,7 +60,8 @@ public:
 
 
 private:
-
+    void initializeIMFPMollerTable();
+    
   // store the min/max kinetic enrgy values and the correspnding IMFP values
   double          fEmin;
   double          fEmax;

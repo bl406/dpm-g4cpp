@@ -3,6 +3,27 @@
 #include <cstdio>
 #include <iostream>
 
+float SimITr1MFPElastic::eStep;
+float SimITr1MFPElastic::eMin;
+float SimITr1MFPElastic::eMax;
+int SimITr1MFPElastic::ne;
+int SimITr1MFPElastic::nmat;
+std::vector<float> SimITr1MFPElastic::ITr1MFPTable;
+
+void SimITr1MFPElastic::initializeITr1MFPTable(){
+    SimITr1MFPElastic::ne = 500;
+    SimITr1MFPElastic::nmat = fNumMaterial;
+    SimITr1MFPElastic::eMin = fEmin;
+    SimITr1MFPElastic::eMax = fEmax;
+	SimITr1MFPElastic::eStep = (fEmax - fEmin) / (ne - 1);
+	SimITr1MFPElastic::ITr1MFPTable.resize(ne * nmat);
+	for (int i = 0; i < nmat; i++) {
+		for (int j = 0; j < ne; j++) {
+			ITr1MFPTable[i * ne + j] = GetITr1MFPPerDensity(double(eMin + j * eStep), i);
+		}
+	}
+}
+
 SimITr1MFPElastic::SimITr1MFPElastic() {
   fNumMaterial = -1;
   fEmin        = -1.;
@@ -53,4 +74,6 @@ void  SimITr1MFPElastic::LoadData(const std::string& dataDir, int verbose) {
     }
   }
   fclose(f);
+
+  initializeITr1MFPTable();
 }
