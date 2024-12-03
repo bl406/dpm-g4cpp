@@ -51,7 +51,7 @@ void  Simulate(int nprimary, float eprimary, bool iselectron, float lbox,
 // 2. a discrete ioni interaction take place
 // 3. MSC hinge or end of MSC step take place
 // 4. the electron energy drops below zero so stops
-int   KeepTrackingElectron(SimElectronData& elData, SimMaterialData& matData, Geom& geom, Track& track, 
+int   KeepTrackingElectron(SimMaterialData& matData, Geom& geom, Track& track, 
 	float& numElTr1MFP, float& numMollerMFP, float invMollerMFP, float& numBremMFP);
 
 //
@@ -86,7 +86,7 @@ void   PerformMoller(Track& track, SimMollerTables* theMollerTable);
 //       while it needs to be computed at the e- energy at the pre-step point.
 //       The pre-step point kinetic energy is `ekin0` while the current kinetic
 //       energy is `track.fEkin`.
-void PerformMSCAngularDeflection(Track& track, float ekin0, SimGSTables* theGSTables);
+void PerformMSCAngularDeflection(Track& track, float ekin0);
 
 
 // Auxiliary funtion for simple e+e- annihilation

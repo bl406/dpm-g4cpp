@@ -38,7 +38,7 @@ public:
   // determined by the `slow` and `shigh` parameters with the smooth transition
   // around `ecross`.
   //
-  float GetMaxScatStrength(float ekin) {
+  static inline float GetMaxScatStrength(float ekin) {
       // make sure that E_min <= ekin < E_max
       const float e = std::min(SimMaxScatStrength::eMax - 1.0E-6f, std::max(SimMaxScatStrength::eMin, ekin));
 	  int index = (int)((e - SimMaxScatStrength::eMin) / SimMaxScatStrength::eStep);

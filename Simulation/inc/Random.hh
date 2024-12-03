@@ -8,8 +8,8 @@
 
 class Random{
 public:
-  static double UniformRand(){
-    return dis(generator);
+  static float UniformRand(){
+    return float(dis(generator));
   }
 
 public:

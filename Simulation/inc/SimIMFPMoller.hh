@@ -34,7 +34,7 @@ public:
   void  LoadData(const std::string& dataDir, int verbose);
 
   // the inverse MFP in [1/mm] [cm3/g] scalled units
-  float GetIMFPPerDensity(float ekin) {
+  static inline float GetIMFPPerDensity(float ekin) {
 	  // make sure that E_min <= ekin < E_max
 	  const float e = std::min(SimIMFPMoller::eMax - 1.0E-6f, std::max(SimIMFPMoller::eMin, ekin));
 	  int index = (int)((e - SimIMFPMoller::eMin) / SimIMFPMoller::eStep);

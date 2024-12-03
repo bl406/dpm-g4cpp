@@ -34,7 +34,7 @@ public:
   void  LoadData(const std::string& dataDir, int verbose);
 
   // the inverse MFP in [1/mm] [cm3/g] scalled units
-  float GetIMFPPerDensity(float ekin, int imat) {
+  static inline float GetIMFPPerDensity(float ekin, int imat) {
       // check vacuum case i.e. imat = -1
       if (imat < 0) return 1.0E-20;
 

@@ -123,7 +123,7 @@ void   Simulate(int nprimary, float eprimary, bool iselectron, float lbox,
           // 1. elastic interaction with msc: s/tr1mfp and sample the hinge position as well
           //    NOTE: data are used for the reference material and not scalled by the density
           //          so numTr1MFP ~ s_max(E)/tr1-mfp(E) [no units]
-          float numTr1MFP    = elData.GetMaxScatStrength()->GetMaxScatStrength(track.fEkin);
+          float numTr1MFP    = SimMaxScatStrength::GetMaxScatStrength(track.fEkin);
           // travell this #tr1-mfp after the MSC-hinge took place
           float numTr1MFP0   = Random::UniformRand()*numTr1MFP;
           // travel this #tr1-mfp till the MSC-hinge
@@ -138,7 +138,7 @@ void   Simulate(int nprimary, float eprimary, bool iselectron, float lbox,
           //       that in case of Moller (in DPM) even E'=E_0 in each step as dicussed above).
           float numMollerMFP = -std::log(Random::UniformRand());
           // again, the reference material Moller IMFP value is used
-          float invMollerMFP = elData.GetIMFPMoller()->GetIMFPPerDensity(track.fEkin);
+          float invMollerMFP = SimIMFPMoller::GetIMFPPerDensity(track.fEkin);
           //
           // 3. bremsstrahlung:
           // NOTE: IMFP for bremsstrahlung is important so it's interpolated by using values for
@@ -159,7 +159,7 @@ void   Simulate(int nprimary, float eprimary, bool iselectron, float lbox,
             // b.  (4) the e- energy drops below the e- tracking cut which is equal to the
             //     secondary e- production threshold (end of this history)
             // c.  the e- leaves the geometry, i.e. goes into vacuum (its energy set to 0 so return with 4)
-            int whatHappend = KeepTrackingElectron(elData, matData, geom, track, numTr1MFP, numMollerMFP, invMollerMFP, numBremMFP);
+            int whatHappend = KeepTrackingElectron(matData, geom, track, numTr1MFP, numMollerMFP, invMollerMFP, numBremMFP);
             //
             theVoxelMatIndx = track.fMatIndx;
             // terminate if the tarck is in vacuum (its energy has been set to zero)
@@ -210,7 +210,7 @@ void   Simulate(int nprimary, float eprimary, bool iselectron, float lbox,
                          // Resample #mfp left and interpolate the IMFP since the enrgy has been changed.
                          // Again, the reference material Moller IMFP value is used
                          numMollerMFP = -std::log(Random::UniformRand());
-                         invMollerMFP = elData.GetIMFPMoller()->GetIMFPPerDensity(track.fEkin);
+                         invMollerMFP = SimIMFPMoller::GetIMFPPerDensity(track.fEkin);
                          break;
                        }
               // (3) msc interaction happend: either hinge or just or end of an MSC step
@@ -218,7 +218,7 @@ void   Simulate(int nprimary, float eprimary, bool iselectron, float lbox,
                          if (isMSCHinge) {
                            // Sample angular deflection from GS distr. and apply it
                            // -----------------------------------------------------
-                           PerformMSCAngularDeflection(track, theEkin0, elData.GetTheGSTables());
+                           PerformMSCAngularDeflection(track, theEkin0);
                            // -----------------------------------------------------
                            // set the #tr1-mfp left to the remaining, i.e. after hinge part
                            numTr1MFP   = numTr1MFP0;
@@ -228,7 +228,7 @@ void   Simulate(int nprimary, float eprimary, bool iselectron, float lbox,
                            // end point so resample #tr1-mfp left and the hinge point
                            theEkin0   = track.fEkin;
                            // again, the reference material K_1(E) is used
-                           numTr1MFP  = elData.GetMaxScatStrength()->GetMaxScatStrength(theEkin0);
+                           numTr1MFP  = SimMaxScatStrength::GetMaxScatStrength(theEkin0);
                            // travell this #tr1-mfp after the MSC-hinge took place
                            numTr1MFP0 = Random::UniformRand()*numTr1MFP;
                            // travell this #tr1-mfp till the MSC-hinge
@@ -252,7 +252,7 @@ void   Simulate(int nprimary, float eprimary, bool iselectron, float lbox,
 }
 
 
-int KeepTrackingElectron(SimElectronData& elData, SimMaterialData& matData, Geom& geom, Track& track, float& numTr1MFP, float& numMollerMFP, float invMollerMFP, float& numBremMFP) {
+int KeepTrackingElectron(SimMaterialData& matData, Geom& geom, Track& track, float& numTr1MFP, float& numMollerMFP, float invMollerMFP, float& numBremMFP) {
   int whatHappend = 0;
   // compute the distance to boundary: this will be the current value of the maximal step length
   float stepGeom = geom.DistanceToBoundary(track.fPosition, track.fDirection, track.fBoxIndx);
@@ -307,17 +307,17 @@ int KeepTrackingElectron(SimElectronData& elData, SimMaterialData& matData, Geom
     // - constant dEdx along the step, i.e. dEdx=dEdx(E_0) and dE = s dEdx --> E_mid = E_0 - 0.5 s dEdx
     // - the step equal to the current one, i.e. `stepLength` (dist. to boundary)
     // the restricted stopping power for this material: for the referecne material and scalled with the current density
-    float theDEDX    = elData.GetDEDX()->GetDEDXPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity;
+    float theDEDX    = SimStoppingPower::GetDEDXPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity;
     // make sure that do not go below the minim e- energy
     float midStepE   = std::max(track.fEkin-0.5f*stepLength*theDEDX, theElectronCut );
     // elastic: #tr1-mfp' = #tr1-mfp - ds/tr1-mfp' so the change in #tr1-mfp is ds/tr1-mfp' and
     //          1/mfp' is computed here
-    float delNumTr1MFP    = elData.GetITr1MFPElastic()->GetITr1MFPPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
+    float delNumTr1MFP    = SimITr1MFPElastic::GetITr1MFPPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
     // moller: see above the details
     float delNumMollerMFP = invMollerMFP*scalMolMFP*theVoxelMatDensity;
     // brem: #mfp' = #mfp - ds/mfp' with mfp = brem_mfp so the change in #mfp is ds/mfp' and
     //       1/mfp' is computed here
-    float delNumBremMFP   = elData.GetIMFPBrem()->GetIMFPPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
+    float delNumBremMFP   = SimIMFPBrem::GetIMFPPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
     //
     //
     // Now we will see how far actually we go by trying to decrese each of the 3 #mfp/#tr1-mfp
@@ -365,9 +365,9 @@ int KeepTrackingElectron(SimElectronData& elData, SimMaterialData& matData, Geom
       //       is taken since that is the shortest. So we recompute the mid-step-point
       //       energy according to the step lenght of stepElastic and re-evaluate
       //       the 1./mfp i.e. 1/tr1mfp at this energy value
-      stepElastic = numTr1MFP/(elData.GetITr1MFPElastic()->GetITr1MFPPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity);
+      stepElastic = numTr1MFP/(SimITr1MFPElastic::GetITr1MFPPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity);
       midStepE    = std::max( track.fEkin-0.5f*stepElastic*theDEDX, theElectronCut );
-      delNumTr1MFP = elData.GetITr1MFPElastic()->GetITr1MFPPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
+      delNumTr1MFP = SimITr1MFPElastic::GetITr1MFPPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
       // don't let longer than the original in order to make sure that it is still the
       // minimum of all step lenghts
       stepElastic = std::min(stepLength, numTr1MFP/delNumTr1MFP);
@@ -388,7 +388,7 @@ int KeepTrackingElectron(SimElectronData& elData, SimMaterialData& matData, Geom
     //   pre-step point dEdx (assumed to be constant along the step).
     midStepE     = std::max( track.fEkin-0.5f*stepLength*theDEDX, theElectronCut );
     // - then the dEdx at this energy
-    theDEDX      = elData.GetDEDX()->GetDEDXPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
+    theDEDX      = SimStoppingPower::GetDEDXPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
     // - then the energy loss along the step using the mid-step dEdx (as constant)
     //   and the final energy
     float deltE = stepLength*theDEDX;
@@ -729,9 +729,9 @@ void PerformMoller(Track& track, SimMollerTables* theMollerTable) {
 }
 
 
-void PerformMSCAngularDeflection(Track& track, float ekin0, SimGSTables* theGSTables) {
+void PerformMSCAngularDeflection(Track& track, float ekin0) {
   const float kPI  = 3.1415926535897932;
-  const float dum0 = theGSTables->SampleAngularDeflection( ekin0,
+  const float dum0 = SimGSTables::SampleAngularDeflection( ekin0,
                                                             Random::UniformRand(),
                                                             Random::UniformRand());
   const float cost = std::max(-1.0f, std::min(1.0f, dum0));

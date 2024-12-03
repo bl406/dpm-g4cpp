@@ -3,6 +3,13 @@
 #include <cstdio>
 #include <iostream>
 
+float SimStoppingPower::eStep;
+float SimStoppingPower::eMax;
+float SimStoppingPower::eMin;
+int SimStoppingPower::ne;
+int SimStoppingPower::nmat;
+std::vector<float> SimStoppingPower::StoppingPowerTable;
+
 void SimStoppingPower::initializeStoppingPowerTable()
 {
     SimStoppingPower::ne = 500;

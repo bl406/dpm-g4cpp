@@ -4,6 +4,38 @@
 #include <cstdio>
 #include <cmath>
 
+int SimGSTables::SamplingTableSize;
+float SimGSTables::MinPrimaryEnergy;
+float SimGSTables::LogMinPrimaryEnergy;
+float SimGSTables::InvLogDeltaPrimaryEnergy;
+float SimGSTables::DeltaCum;
+
+std::vector<float> SimGSTables::VarUTable;
+std::vector<float> SimGSTables::ParaATable;
+std::vector<float> SimGSTables::ParaBTable;
+std::vector<float> SimGSTables::TransformParamTable;
+std::vector<float> SimGSTables::PrimaryEnergyGridTable;
+
+void SimGSTables::InitializeTables()
+{
+	SamplingTableSize = fSamplingTableSize;
+	MinPrimaryEnergy = (float)fMinPrimaryEnergy;
+	LogMinPrimaryEnergy = (float)fLogMinPrimaryEnergy;
+	InvLogDeltaPrimaryEnergy = (float)fInvLogDeltaPrimaryEnergy;
+	DeltaCum = (float)fDeltaCum;
+
+    TransformParamTable.resize(fNumPrimaryEnergies);
+    for (int i = 0; i < fNumPrimaryEnergies; ++i) {
+        TransformParamTable[i] = (float)fTheTables[i]->fTransformParam;
+        PrimaryEnergyGridTable[i] = (float)fPrimaryEnergyGrid[i];
+
+        for (int j = 0; j < fSamplingTableSize; ++j){
+            VarUTable[i * fSamplingTableSize + j] = (float)fTheTables[i]->fGSTable[j].fVarU;
+            ParaATable[i * fSamplingTableSize + j] = (float)fTheTables[i]->fGSTable[j].fParmA;
+            ParaBTable[i * fSamplingTableSize + j] = (float)fTheTables[i]->fGSTable[j].fParmB;
+        }
+    }
+}
 
 SimGSTables::SimGSTables() {
   // all members will be set when loading the data from the file
@@ -14,7 +46,6 @@ SimGSTables::SimGSTables() {
   fInvLogDeltaPrimaryEnergy = -1.;
   fDeltaCum                 = -1.;
 }
-
 
 void SimGSTables::LoadData(const std::string& dataDir, int verbose) {
   char name[512];
@@ -79,6 +110,43 @@ void SimGSTables::LoadData(const std::string& dataDir, int verbose) {
   fclose(f);
 }
 
+float SimGSTables::SampleAngularDeflection(float eprim, float rndm1, float rndm2) {
+    // determine electron energy lower grid point and sample if that or one above is used now
+    float lpenergy = std::log(eprim);
+    float phigher = (lpenergy - LogMinPrimaryEnergy) * InvLogDeltaPrimaryEnergy;
+    int penergyindx = (int)phigher;
+    // keep the lower index of the energy bin
+    const int ielow = penergyindx;
+    phigher -= penergyindx;
+    if (rndm1 < phigher) {
+        ++penergyindx;
+    }
+    // should always be fine if electron-cut < eprim < E_max but make sure
+  //  penergyindx      = std::min(fNumPrimaryEnergies-1, penergyindx);
+    // sample the transformed variable \xi
+    
+    // lower index of the (common) discrete cumulative bin and the residual fraction
+    const int    indxl = (int)(rndm2 / DeltaCum);
+    const float resid = rndm2 - indxl * DeltaCum;
+    // compute value `u` by using ratin based numerical inversion
+    const float  parA = ParaATable[penergyindx* SamplingTableSize+indxl];
+    const float  parB = ParaBTable[penergyindx * SamplingTableSize + indxl];
+    const float    u0 = VarUTable[penergyindx * SamplingTableSize + indxl];
+    const float    u1 = VarUTable[penergyindx * SamplingTableSize + indxl + 1];
+    const float  dum1 = (1.0 + parA + parB) * DeltaCum * resid;
+    const float  dum2 = DeltaCum * DeltaCum + parA * DeltaCum * resid + parB * resid * resid;
+    const float  theU = u0 + dum1 / dum2 * (u1 - u0);
+    // transform back the sampled `u` to `mu(u)` using the transformation parameter `a`
+    // mu(u) = 1 - 2au/[1-u+a] as given by Eq.(34)
+    // interpolate (linearly) the transformation parameter to E
+    const float a0 = TransformParamTable[ielow];
+    const float a1 = TransformParamTable[ielow+1];
+    const float e0 = PrimaryEnergyGridTable[ielow];
+    const float e1 = PrimaryEnergyGridTable[ielow + 1];
+
+    const float parTransf = (a1 - a0) / (e1 - e0) * (eprim - e0) + a0;
+    return 1.f - 2.f * parTransf * theU / (1.f - theU + parTransf);
+}
 
 // it is assumed that the `eprim` electron energy: electron-cut < eprim <E_max
 double SimGSTables::SampleAngularDeflection(double eprim, double rndm1, double rndm2) {

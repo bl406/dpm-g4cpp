@@ -36,7 +36,17 @@
 
 
 class SimGSTables {
+    static int SamplingTableSize;
+	static float MinPrimaryEnergy;
+	static float LogMinPrimaryEnergy;
+	static float InvLogDeltaPrimaryEnergy;
+	static float DeltaCum;
 
+    static std::vector<float> VarUTable;
+    static std::vector<float> ParaATable;
+    static std::vector<float> ParaBTable;
+    static std::vector<float> TransformParamTable;
+    static std::vector<float> PrimaryEnergyGridTable;
 public:
 
   // CTR and DTR
@@ -52,13 +62,14 @@ public:
   // The two additional input arguments are uniformly random values on [0,1].
   //
   // NOTE: it is assumed that the `eprim` electron energy: electron-cut < eprim <E_max
+  static float SampleAngularDeflection(float ekin, float rndm1, float rndm2);
   double SampleAngularDeflection(double ekin, double rndm1, double rndm2);
 
 
 private:
 
   void   CleanTables();
-
+  void InitializeTables();
 
 private:
 

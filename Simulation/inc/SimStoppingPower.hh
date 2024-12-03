@@ -35,7 +35,7 @@ public:
   void  LoadData(const std::string& dataDir, int verbose);
 
   // the stopping power in [MeV/mm] [cm3/g] scalled units
-  float GetDEDXPerDensity(float ekin, int imat) {
+  static inline float GetDEDXPerDensity(float ekin, int imat) {
       // check vacuum case i.e. imat = -1
       if (imat < 0) return 1.0E-20;
       // make sure that E_min <= ekin < E_max
