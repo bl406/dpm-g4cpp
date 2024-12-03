@@ -26,6 +26,7 @@
 // Input arguments for the simulation phase with their default values.
 static std::string   gPrimaryParticle("e-");        // primary particle is electron
 static std::string   gInputDataDir("./data");       // location of the pre-generated data
+static std::string   gOutputFileName("hist.sim");   // the output filename
 static double        gPrimaryEnergy     = 15.0;     // primary particle energy in [MeV]
 static double        gVoxelSize         =  1.0;     // geometry voxel/box size in [mm]
 static int           gNumPrimaries      =  1.0E+5;  // simulate 100 000 primary events
@@ -38,6 +39,7 @@ static struct option options[] = {
   {"input-data-dir      (where the pre-generated data are located)      - default: ./data" , required_argument, 0, 'd'},
   {"voxel-size          (size of the voxel/box in [mm])                 - default: 1.0"    , required_argument, 0, 'b'},
   {"configuration-index (one of the pre-defined configuration index)    - default: 0"      , required_argument, 0, 'c'},
+  {"output-filename     (the filename of the result)                    - default: hist.sim"      , required_argument, 0, 'o'},
   {"help"                                                                                  , no_argument      , 0, 'h'},
   {0, 0, 0, 0}
 };
@@ -77,7 +79,7 @@ int main(int argc, char *argv[]) {
   //
   // Execute the simulation according to the iput arguments
   bool isElectron = (gPrimaryParticle=="e-");
-  Simulate(gNumPrimaries, gPrimaryEnergy, isElectron, gVoxelSize, theSimMaterialData, theSimElectronData, theSimPhotonData, theConfig.fGeomIndex);
+  Simulate(gNumPrimaries, gPrimaryEnergy, isElectron, gVoxelSize, theSimMaterialData, theSimElectronData, theSimPhotonData, theConfig.fGeomIndex, gOutputFileName);
   //
   return 0;
 }
@@ -101,7 +103,7 @@ void Help() {
 void GetOpt(int argc, char *argv[]) {
   while (true) {
     int c, optidx = 0;
-    c = getopt_long(argc, argv, "hp:e:n:d:b:c:", options, &optidx);
+    c = getopt_long(argc, argv, "hp:e:n:d:b:c:o:", options, &optidx);
     if (c == -1)
       break;
     switch (c) {
@@ -116,6 +118,9 @@ void GetOpt(int argc, char *argv[]) {
          exit(-1);
        }
        break;
+    case 'o':
+		gOutputFileName = optarg;
+		break;
     case 'e':
        gPrimaryEnergy = std::stod(optarg);
        break;
@@ -143,6 +148,7 @@ void GetOpt(int argc, char *argv[]) {
    }
    std::cout << "\n === The dpm++ simulation confguration: \n"
             << "\n     - input data directory  : " << gInputDataDir
+            << "\n     - output filename  : " << gOutputFileName
             << "\n     - primary particle      : " << gPrimaryParticle
             << "\n     - primary energy        : " << gPrimaryEnergy << " [MeV]"
             << "\n     - number of histories   : " << gNumPrimaries

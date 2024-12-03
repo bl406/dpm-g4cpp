@@ -1,6 +1,8 @@
 #ifndef SimDPMLike_HH
 #define SimDPMLike_HH
 
+#include <string>
+
 //
 // M. Novak: 2021
 //
@@ -42,7 +44,7 @@ class Track;
 // file at the termination of the simulation.
 //
 void  Simulate(int nprimary, float eprimary, bool iselectron, float lbox, 
-	SimMaterialData& matData, SimElectronData& elData, SimPhotonData& phData, int geomIndex);
+	SimMaterialData& matData, SimElectronData& elData, SimPhotonData& phData, int geomIndex, std::string filename);
 
 
 
