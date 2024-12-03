@@ -37,7 +37,7 @@
 #include <cstdio>
 
 
-void   Simulate(int nprimary, double eprimary, bool iselectron, double lbox, SimMaterialData& matData, SimElectronData& elData, SimPhotonData& phData, int geomIndex) {
+void   Simulate(int nprimary, double eprimary, bool iselectron, double lbox, SimMaterialData& matData, SimElectronData& elData, SimPhotonData& phData, int geomIndex, std::string filename) {
   // create the simple geometry
   Geom geom(lbox, &matData, geomIndex);
   //
@@ -247,7 +247,7 @@ void   Simulate(int nprimary, double eprimary, bool iselectron, double lbox, Sim
   } // end of tracking all the primaries (i.e. end of tracking the last primary with all its secondaries)
   std::cout << "\n === End simulation of N = " << nprimary << " events === \n" << std::endl;
   // write histograms
-  geom.Write("hist.sim", nprimary);
+  geom.Write(filename, nprimary);
 }
 
 
