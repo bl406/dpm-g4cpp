@@ -54,76 +54,76 @@
 
 #include <vector>
 #include <string>
+#include <array>
 
 class Geom {
-
 public:
+	Geom(SimMaterialData* matData) { fMaterialData = matData; }
+	~Geom() {}
 
-  // Constructor with the `lbox` voxel box size and maximum extent of the
-  // geometry as input raguments. (the latter has a defult 10.0 [cm] value).
-  Geom (double lbox, SimMaterialData* matData, int geomIndex=0);
+	// Computes the distance to the volume boundary from the given `rLocation`
+   // location along the given `vDirection` direction. When the input `rLocation`
+   // is within `0.5*kTolerance` from a volume boundary, then it first updated by
+   // moving the point to the next voxel then the distance to the boundary is
+   // computed in this new volume. The `iVoxel` voxel index triplet is always set
+   // as well.
+	float DistanceToBoundary(double* rLocation, double* dDirection, int* iVoxel);
 
-  // Computes the distance to the volume boundary from the given `rLocation`
-  // location along the given `vDirection` direction. When the input `rLocation`
-  // is within `0.5*kTolerance` from a volume boundary, then it first updated by
-  // moving the point to the next voxel then the distance to the boundary is
-  // computed in this new volume. The `iVoxel` voxel index triplet is always set
-  // as well.
-  double DistanceToBoundary(double* rLocation, double* dDirection, int* iVoxel);
+	// Returns with the material index based on the input `iVoxel` voxel index
+ // triplet.
+ //
+ // NOTE: it is assumed now (only for the sake of simplicity) that each voxel
+ //       is built up from a single material, i.e. no material mixing. However,
+ //       the simulation do not make any use of this assumption. Therefore,
+ //       by changing `GetMaterialIndex` such that it returns the index of the
+ //       main material of the voxel while the `GetVoxelMaterialDensity` returns
+ //       whatever fractional density values (in [g/cm3]) won't require any change
+ //       in the simulation part.
+	int    GetMaterialIndex(int* i) {
+		return med_indices[i[0] + i[1] * dims[0] + i[2] * dims[1] * dims[0]];
+	}
 
+	// Returns with the material density of the voxel specified by its `iVoxel`
+	// voxel index triplet input ragument.
+	double GetVoxelMaterialDensity(int* iVoxel) {
+		const int imat = GetMaterialIndex(iVoxel);
+		return imat > -1 ? fMaterialData->fMaterialDensity[imat] : 1.0E-40;
+	}
+	double GetVoxelMaterialDensity(int imat) {
+		return imat > -1 ? fMaterialData->fMaterialDensity[imat] : 1.0E-40;
+	}
 
-  // Returns with the material index based on the input `iVoxel` voxel index
-  // triplet.
-  //
-  // NOTE: it is assumed now (only for the sake of simplicity) that each voxel
-  //       is built up from a single material, i.e. no material mixing. However,
-  //       the simulation do not make any use of this assumption. Therefore,
-  //       by changing `GetMaterialIndex` such that it returns the index of the
-  //       main material of the voxel while the `GetVoxelMaterialDensity` returns
-  //       whatever fractional density values (in [g/cm3]) won't require any change
-  //       in the simulation part.
-  int    GetMaterialIndex(int* iVoxel);
+	void  Score(double edep, int* ivoxel);
 
-  // Returns with the material density of the voxel specified by its `iVoxel`
-  // voxel index triplet input ragument.
-  double GetVoxelMaterialDensity(int* iVoxel) {
-    const int imat = GetMaterialIndex(iVoxel);
-    return imat > -1 ? fMaterialData->fMaterialDensity[imat] : 1.0E-40;
-  }
-  double GetVoxelMaterialDensity(int imat) {
-    return imat > -1 ? fMaterialData->fMaterialDensity[imat] : 1.0E-40;
-  }
+	bool LoadEgsPhantom(const std::string& fname);
 
-  // adds the `edep` energy deposit to the voxel/box with z index of `iz`
-  void   Score(double edep, int iz);
+	void InitScore();
 
-  // writes the histograms into the `fname` file
-  void   Write(const std::string& fname, int nprimaries);
+	void InitGeom(int geomIndex);
 
+	// writes the histograms into the `fname` file
+	void   Write(const std::string& fname, int nprimaries);
+protected:
+	
+	// tolerance of the boundary computation [mm]
+	const float         kTolerance = 1.0E-4;
+	// maximum extent of the geometry (except in the -z direction) in  [mm]
+	const float         kExtent = 1000.0;
+	
+	std::vector<int> med_indices;
+	std::array<int, 3> dims;
+	std::array<float, 3> spacing, inv_spacing;
+	std::array<float, 2> xbound, ybound, zbound;
 
-private:
+	// poiner to the material data object set at construction (used only for the
+	// material density in [g/cm3] in `GetVoxelMaterialDensity`).
+	SimMaterialData* fMaterialData;
 
-  // tolerance of the boundary computation [mm]
-  const double         kTolerance = 1.0E-4;
-  // maximum extent of the geometry (except in the -z direction) in  [mm]
-  const double         kExtent    = 100.0;
-
-  // index of the predefined geometry
-  int                  fPreDefinedGeomIndex;
-
-  // lenght of the box (cube for the simplicity)
-  double               fLBox;
-  double               fInvLBox;
-  double               fLHalfBox;
-
-  // poiner to the material data object set at construction (used only for the
-  // material density in [g/cm3] in `GetVoxelMaterialDensity`).
-  SimMaterialData*     fMaterialData;
-
-  // energy deposit and step number histograms: along the depth (i.e. along +z)
-  std::vector<double>  fEdepHist;
-  std::vector<double>  fStepHist;
-
+	float ensrc;               // total energy from source
+	std::vector<float> endep;              // 3D dep. energy matrix per batch
+	/* The following variables are needed for statistical analysis. Their
+	 values are accumulated across the simulation */
+	std::vector<float> accum_endep;        // 3D deposited energy matrix
+	std::vector<float> accum_endep2;       // 3D square deposited energy
 };
-
 #endif //Geom_HH

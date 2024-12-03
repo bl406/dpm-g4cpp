@@ -37,9 +37,14 @@
 #include <cstdio>
 
 
-void   Simulate(int nprimary, double eprimary, bool iselectron, double lbox, SimMaterialData& matData, SimElectronData& elData, SimPhotonData& phData, int geomIndex) {
+void   Simulate(int nprimary, double eprimary, bool iselectron, double lbox, 
+    SimMaterialData& matData, SimElectronData& elData, SimPhotonData& phData, int geomIndex) {
+
   // create the simple geometry
-  Geom geom(lbox, &matData, geomIndex);
+  Geom geom(&matData);
+  geom.InitGeom(geomIndex);
+  geom.InitScore();
+
   //
   const double theElectronCut = matData.fElectronCut;
   const double theGammaCut    = matData.fGammaCut;
@@ -178,7 +183,7 @@ void   Simulate(int nprimary, double eprimary, bool iselectron, double lbox, Sim
                          // below the tracking cut and stop tracking if yes
                          if (track.fEkin < theElectronCut) {
                            // deposit the whole energy and stop tracking
-                           geom.Score(track.fEkin, track.fBoxIndx[2]);
+                           geom.Score(track.fEkin, track.fBoxIndx);
                            track.fEkin = 0.0;
                            // perform annihilation in case of e+
                            if (track.fType == +1) {
@@ -247,7 +252,7 @@ void   Simulate(int nprimary, double eprimary, bool iselectron, double lbox, Sim
   } // end of tracking all the primaries (i.e. end of tracking the last primary with all its secondaries)
   std::cout << "\n === End simulation of N = " << nprimary << " events === \n" << std::endl;
   // write histograms
-  geom.Write("hist.sim", nprimary);
+  geom.Write("water-ti-bone", nprimary);
 }
 
 
@@ -437,7 +442,7 @@ int KeepTrackingElectron(SimElectronData& elData, SimMaterialData& matData, Geom
     // interaction (whatHappend={1,2,3}) OR to terminate the tracking (whatHappend=4)
     // NOTE: we need to score before calling DistanceToBoundary again because that
     //       might positon the particle to the next volume.
-    geom.Score(track.fEdep, track.fBoxIndx[2]);
+    geom.Score(track.fEdep, track.fBoxIndx);
     //
     // Compute distance to boundary if geometry limited this step:
     // - if geometry limited the step, the current position above is on a
@@ -522,8 +527,7 @@ void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& g
       // insert the secondary e- only if ist energy is above the tracking cut
       // and deposit the corresponding enrgy otherwise
       if (elEner < theElectronCut) {
-        geom.Score(elEner, track.fBoxIndx[2]);
-        //geom.Score(elEner, track.fPosition[2]);
+        geom.Score(elEner, track.fBoxIndx);
       } else {
         // insert secondary e- but first compute its cost
         const double e0 = track.fEkin*kInvEMC2;
@@ -550,7 +554,7 @@ void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& g
       // stop the photon if its energy dropepd below the photon absorption threshold
       track.fEkin = phEner;
       if (track.fEkin < theGammaCut) {
-        geom.Score(track.fEkin, track.fBoxIndx[2]);
+        geom.Score(track.fEkin, track.fBoxIndx);
         //geom.Score(track.fEkin, track.fPosition[2]);
         track.fEkin = 0.0;
         return;
@@ -584,7 +588,7 @@ void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& g
       // insert the e- and e+ only if their energy is above the tracking cut
       // the e-
       if (e2 < theElectronCut) {
-        geom.Score(e2, track.fBoxIndx[2]);
+        geom.Score(e2, track.fBoxIndx);
         //geom.Score(e2, track.fPosition[2]);
       } else {
         Track& aTrack        = TrackStack::Instance().Insert();
@@ -603,7 +607,7 @@ void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& g
       }
       // the e+
       if (e1 < theElectronCut) {
-        geom.Score(e1, track.fBoxIndx[2]);
+        geom.Score(e1, track.fBoxIndx);
         //geom.Score(e1, track.fPosition[2]);
         PerformAnnihilation(track);
       } else {
@@ -628,7 +632,7 @@ void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& g
 
     // if we are here then Photoelectric effect happens that absorbs the photon:
     // - score the current phton energy and stopp the photon
-    geom.Score(track.fEkin, track.fBoxIndx[2]);
+    geom.Score(track.fEkin, track.fBoxIndx);
     //geom.Score(track.fEkin, track.fPosition[2]);
     track.fEkin = 0.0;
   };
