@@ -19,6 +19,18 @@ public:
   SimLinAliasData(int size);
  ~SimLinAliasData();
 
+ // data that describes a single point in the table
+ struct OnePoint {
+     // the discretized stochastic variable value
+     double fXdata;
+     // the corresponding p.d.f. value (not necessarily normalised over fXdata)
+     double fYdata;
+     // the correspnding alias probability (not necessarily normalised over fXdata)
+     double fAliasW;
+     // the corresponding alias index
+     int    fAliasIndx;
+ };
+
   // method provided to fill the data: supposed to be called fNumData times
   void   FillData(int indx, double xval, double yval, double aliasw, int aliasi);
 
@@ -26,20 +38,12 @@ public:
   // `rndm1` and `rndm2` are uniformly random values on [0,1]
   double Sample(double rndm1, double rndm2);
 
+  const SimLinAliasData::OnePoint& GetOnePoint(int i) {
+      return fTheTable[i];
+  }
 
 private:
-  // data that describes a single point in the table
-  struct OnePoint {
-    // the discretized stochastic variable value
-    double fXdata;
-    // the corresponding p.d.f. value (not necessarily normalised over fXdata)
-    double fYdata;
-    // the correspnding alias probability (not necessarily normalised over fXdata)
-    double fAliasW;
-    // the corresponding alias index
-    int    fAliasIndx;
-  };
-
+  
   //
   // Data member declaration:
   //

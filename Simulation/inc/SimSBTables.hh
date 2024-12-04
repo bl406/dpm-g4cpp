@@ -25,7 +25,17 @@ class SimLinAliasData;
 
 
 class SimSBTables {
+	static int NumMaterial;
+	static int SamplingTableSize;
+	static int NumPrimaryEnergies;
+	static float MinPrimaryEnergy;
+	static float LogMinPrimaryEnergy;
+	static float InvLogDeltaPrimaryEnergy;
 
+	static std::vector<float> XdataTable;
+	static std::vector<float> YdataTable;
+	static std::vector<float> AliasWTable;
+	static std::vector<int> AliasIndxTable;
 public:
 
   // CTR and DTR
@@ -42,6 +52,8 @@ public:
   // uniformly random values on [0,1].
   //
   // NOTE: it is assumed that: gamma-cut < eprim < E_max
+  static float Sample(int imat, int penergyindx, float rndm1, float rndm2);
+  static float SampleEnergyTransfer(float eprim, int imat, float rndm1, float rndm2, float rndm3);
   double SampleEnergyTransfer(double eprim, int imat, double rndm1, double rndm2, double rndm3);
 
 
@@ -49,7 +61,7 @@ public:
 private:
 
   void   CleanTables();
-
+  void InitializeTables();
 
 private:
 

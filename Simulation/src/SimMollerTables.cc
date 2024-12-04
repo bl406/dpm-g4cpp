@@ -6,6 +6,15 @@
 #include <cstdio>
 #include <cmath>
 
+int SimMollerTables::SampleTableSize;
+int SimMollerTables::NumPrimaryEnergies;
+float SimMollerTables::MinPrimaryEnergy;
+float SimMollerTables::LogMinPrimaryEnergy;
+float SimMollerTables::InvLogDeltaPrimaryEnergy;
+std::vector<float> SimMollerTables::XdataTable;
+std::vector<float> SimMollerTables::YdataTable;
+std::vector<float> SimMollerTables::AliasWTable;
+std::vector<int> SimMollerTables::AliasIndxTable;
 
 SimMollerTables::SimMollerTables() {
   // all members will be set when loading the data from the file
@@ -16,6 +25,30 @@ SimMollerTables::SimMollerTables() {
   fInvLogDeltaPrimaryEnergy = -1.;
 }
 
+void SimMollerTables::InitializeTables()
+{
+    SampleTableSize = (float)fSamplingTableSize;
+    NumPrimaryEnergies = (float)fNumPrimaryEnergies;
+    MinPrimaryEnergy = (float)fMinPrimaryEnergy;
+    LogMinPrimaryEnergy = (float)fLogMinPrimaryEnergy;
+    InvLogDeltaPrimaryEnergy = (float)fInvLogDeltaPrimaryEnergy;
+
+    XdataTable.resize(NumPrimaryEnergies*SampleTableSize);
+    YdataTable.resize(NumPrimaryEnergies * SampleTableSize);
+    AliasWTable.resize(NumPrimaryEnergies * SampleTableSize);
+    AliasIndxTable.resize(NumPrimaryEnergies * SampleTableSize);
+
+    int index;
+    for (int ie = 0; ie < NumPrimaryEnergies; ++ie) {
+        for (int is = 0; is < SampleTableSize; ++is) {
+            index = ie * SampleTableSize + is;
+            XdataTable[index] = fTheTables[ie]->GetOnePoint(is).fXdata;
+            YdataTable[index] = fTheTables[ie]->GetOnePoint(is).fYdata;
+            AliasWTable[index] = fTheTables[ie]->GetOnePoint(is).fAliasW;
+            AliasIndxTable[index] = fTheTables[ie]->GetOnePoint(is).fAliasIndx;
+        }
+    }
+}
 
 void SimMollerTables::LoadData(const std::string& dataDir, int verbose) {
   char name[512];
@@ -63,6 +96,51 @@ void SimMollerTables::LoadData(const std::string& dataDir, int verbose) {
     }
   }
   fclose(f);
+
+  InitializeTables();
+}
+
+// produce sample from the represented distribution u
+float SimMollerTables::Sample(int penergyindx, float rndm1, float rndm2) {
+    // get the lower index of the bin by using the alias part
+    double rest = rndm1 * (SampleTableSize - 1);
+    int    indxl = (int)(rest);    
+    if (AliasWTable[penergyindx * SampleTableSize + indxl] < rest - indxl)
+        indxl = AliasIndxTable[penergyindx * SampleTableSize + indxl];
+    // sample value within the selected bin by using linear aprox. of the p.d.f.
+    double xval = XdataTable[penergyindx * SampleTableSize + indxl];
+    double xdelta = XdataTable[penergyindx * SampleTableSize + indxl + 1] - xval;
+	float yval = YdataTable[penergyindx * SampleTableSize + indxl];
+    if (yval > 0.0) {
+        double dum = (YdataTable[penergyindx * SampleTableSize + indxl + 1] - yval) / yval;
+        if (std::abs(dum) > 0.1)
+            return xval - xdelta / dum * (1.0 - std::sqrt(1.0 + rndm2 * dum * (dum + 2.0)));
+        else // use second order Taylor around dum = 0.0
+            return xval + rndm2 * xdelta * (1.0 - 0.5 * dum * (rndm2 - 1.0) * (1.0 + dum * rndm2));
+    }
+    return xval + xdelta * std::sqrt(rndm2);
+}
+
+float SimMollerTables::SampleEnergyTransfer(float eprim, float rndm1, float rndm2, float rndm3) {
+    // determine the primary electron energy lower grid point and sample if that or one above is used now
+    double lpenergy = std::log(eprim);
+    double phigher = (lpenergy - LogMinPrimaryEnergy) * InvLogDeltaPrimaryEnergy;
+    int penergyindx = (int)phigher;
+    phigher -= penergyindx;
+    if (rndm1 < phigher) {
+        ++penergyindx;
+    }
+    // should always be fine if 2 x electron-cut < eprim < E_max (also for e+) but make sure
+  //  penergyindx       = std::min(fNumPrimaryEnergies-1, penergyindx);
+    // sample the transformed variable xi=[kappa-ln(T_cut/T_0)]/[ln(T_cut/T_0)-ln(T_max/T_0)]
+    // where kappa = ln(eps) with eps = T/T_0
+    // so xi= [ln(T/T_0)-ln(T_cut/T_0)]/[ln(T_cut/T_0)-ln(T_max/T_0)] that is in [0,1]
+    const double   xi = Sample(penergyindx, rndm2, rndm3);
+    // fLogMinPrimaryEnergy is log(2*ecut) = log(ecut) - log(0.5)
+    const double dum1 = lpenergy - LogMinPrimaryEnergy;
+    // return with the sampled kinetic energy transfered to the electron
+    // (0.5*fMinPrimaryEnergy is the electron production cut)
+    return std::exp(xi * dum1) * 0.5 * MinPrimaryEnergy;
 }
 
 // it is assumed that: 2 x electron-cut < eprim < E_max (also for e+)

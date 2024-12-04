@@ -25,6 +25,10 @@ void SimGSTables::InitializeTables()
 	DeltaCum = (float)fDeltaCum;
 
     TransformParamTable.resize(fNumPrimaryEnergies);
+    PrimaryEnergyGridTable.resize(fNumPrimaryEnergies);
+    VarUTable.resize(fNumPrimaryEnergies * fSamplingTableSize);
+    ParaATable.resize(fNumPrimaryEnergies * fSamplingTableSize);
+    ParaBTable.resize(fNumPrimaryEnergies * fSamplingTableSize);
     for (int i = 0; i < fNumPrimaryEnergies; ++i) {
         TransformParamTable[i] = (float)fTheTables[i]->fTransformParam;
         PrimaryEnergyGridTable[i] = (float)fPrimaryEnergyGrid[i];
@@ -108,6 +112,8 @@ void SimGSTables::LoadData(const std::string& dataDir, int verbose) {
     }
   }
   fclose(f);
+
+  InitializeTables();
 }
 
 float SimGSTables::SampleAngularDeflection(float eprim, float rndm1, float rndm2) {

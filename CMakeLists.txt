@@ -24,7 +24,7 @@ if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
   endif()
 endif()
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -W3")
 
 
 
@@ -80,6 +80,8 @@ target_link_libraries (dpm_GenerateData  ${Geant4_LIBRARIES})
 
 add_executable ( dpm_Simulate ${CMAKE_SOURCE_DIR}/dpm_Simulate.cc ${cxx_sources_SIM})
 target_link_libraries (dpm_Simulate ${GETOPT_LIBRARIES})
+target_compile_definitions(dpm_Simulate PRIVATE _CRT_SECURE_NO_WARNINGS)
+
 
 ## add model level test for bremsstrahlung
 add_executable ( test_brem ${CMAKE_SOURCE_DIR}/test_brem.cc ${cxx_sources_SIM})
