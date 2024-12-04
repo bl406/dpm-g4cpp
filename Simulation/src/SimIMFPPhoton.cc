@@ -2,7 +2,39 @@
 
 #include <cstdio>
 #include <iostream>
+#include <assert.h>
 
+#include "utils.h"
+
+namespace IMFPTotal {
+	int NumMaterial;
+    int NumData;
+    float Emin;
+    float Emax;
+    float InvDelta;
+    std::vector<float>  DataX;
+    std::vector<float>  DataY;
+};
+
+namespace IMFPCompton {
+    int NumMaterial;
+    int NumData;
+    float Emin;
+    float Emax;
+    float InvDelta;
+    std::vector<float>  DataX;
+    std::vector<float>  DataY;
+};
+
+namespace IMFPPairProd {
+    int NumMaterial;
+    int NumData;
+    float Emin;
+    float Emax;
+    float InvDelta;
+    std::vector<float>  DataX;
+    std::vector<float>  DataY;
+};
 
 SimIMFPPhoton::SimIMFPPhoton (int type) {
   // all will be set at LoadData()
@@ -60,4 +92,74 @@ void  SimIMFPPhoton::LoadData(const std::string& dataDir, int verbose) {
     }
   }
   fclose(f);
+}
+
+void SimIMFPPhoton::DataValidation() {
+    std::vector<float> vec;
+    for (int i = 0; i < fNumMaterial; ++i) {
+        vec.push_back((float)fDataPerMaterial[i].GetInvDelta());
+    }
+    auto meanstd = CalMeanAndStd(vec);
+    assert(meanstd[1] < 1.e-8);
+
+    vec.clear();
+    for (int i = 0; i < fNumMaterial; ++i) {
+        vec.push_back((float)fDataPerMaterial[i].GetNumData());
+    }
+    meanstd = CalMeanAndStd(vec);
+    assert(meanstd[1] < 1.e-8);
+}
+
+void SimIMFPPhoton::InitializeIMFPTotalTable() {
+    DataValidation();
+
+    IMFPTotal::NumMaterial = fNumMaterial;
+	IMFPTotal::NumData = fDataPerMaterial[0].GetNumData();
+	IMFPTotal::Emin = (float)fEmin;
+	IMFPTotal::Emax = (float)fEmax;
+	IMFPTotal::InvDelta = (float)fDataPerMaterial[0].GetInvDelta();
+	IMFPTotal::DataX.resize(IMFPTotal::NumMaterial * IMFPTotal::NumData);
+	IMFPTotal::DataY.resize(IMFPTotal::NumMaterial * IMFPTotal::NumData);
+	for (int i = 0; i < fNumMaterial; ++i) {
+		for (int j = 0; j < IMFPTotal::NumData; ++j) {
+			IMFPTotal::DataX[i * IMFPTotal::NumData + j] = (float)fDataPerMaterial[i].GetData(j).fX;
+			IMFPTotal::DataY[i * IMFPTotal::NumData + j] = (float)fDataPerMaterial[i].GetData(j).fY;
+		}
+	}
+}
+
+void SimIMFPPhoton::InitializeIMFPComptonTable() {
+    DataValidation();
+
+    IMFPCompton::NumMaterial = fNumMaterial;
+    IMFPCompton::NumData = fDataPerMaterial[0].GetNumData();
+    IMFPCompton::Emin = (float)fEmin;
+    IMFPCompton::Emax = (float)fEmax;
+    IMFPCompton::InvDelta = (float)fDataPerMaterial[0].GetInvDelta();
+    IMFPCompton::DataX.resize(IMFPCompton::NumMaterial * IMFPCompton::NumData);
+    IMFPCompton::DataY.resize(IMFPCompton::NumMaterial * IMFPCompton::NumData);
+    for (int i = 0; i < fNumMaterial; ++i) {
+        for (int j = 0; j < IMFPCompton::NumData; ++j) {
+            IMFPCompton::DataX[i * IMFPCompton::NumData + j] = (float)fDataPerMaterial[i].GetData(j).fX;
+            IMFPCompton::DataY[i * IMFPCompton::NumData + j] = (float)fDataPerMaterial[i].GetData(j).fY;
+        }
+    }
+}
+
+void SimIMFPPhoton::InitializeIMFPPairProd() {
+    DataValidation();
+
+    IMFPPairProd::NumMaterial = fNumMaterial;
+    IMFPPairProd::NumData = fDataPerMaterial[0].GetNumData();
+    IMFPPairProd::Emin = (float)fEmin;
+    IMFPPairProd::Emax = (float)fEmax;
+    IMFPPairProd::InvDelta = (float)fDataPerMaterial[0].GetInvDelta();
+    IMFPPairProd::DataX.resize(IMFPPairProd::NumMaterial * IMFPPairProd::NumData);
+    IMFPPairProd::DataY.resize(IMFPPairProd::NumMaterial * IMFPPairProd::NumData);
+    for (int i = 0; i < fNumMaterial; ++i) {
+        for (int j = 0; j < IMFPPairProd::NumData; ++j) {
+            IMFPPairProd::DataX[i * IMFPPairProd::NumData + j] = (float)fDataPerMaterial[i].GetData(j).fX;
+            IMFPPairProd::DataY[i * IMFPPairProd::NumData + j] = (float)fDataPerMaterial[i].GetData(j).fY;
+        }
+    }
 }

@@ -36,7 +36,7 @@ public:
   // the inverse MFP in [1/mm] [cm3/g] scalled units
   static inline float GetIMFPPerDensity(float ekin, int imat) {
       // check vacuum case i.e. imat = -1
-      if (imat < 0) return 1.0E-20;
+      if (imat < 0) return 1.0E-20f;
 
       // make sure that E_min <= ekin < E_max
       const float e = std::min(SimIMFPBrem::eMax - 1.0E-6f, std::max(SimIMFPBrem::eMin, ekin));

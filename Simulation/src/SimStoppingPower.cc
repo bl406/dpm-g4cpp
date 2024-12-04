@@ -13,10 +13,10 @@ std::vector<float> SimStoppingPower::StoppingPowerTable;
 void SimStoppingPower::initializeStoppingPowerTable()
 {
     SimStoppingPower::ne = 500;
-    SimStoppingPower::nmat = fNumMaterial;
-    SimStoppingPower::eMin = fEmin;
-    SimStoppingPower::eMax = fEmax;
-    SimStoppingPower::eStep = (fEmax - fEmin) / (ne - 1);
+    SimStoppingPower::nmat = (float)fNumMaterial;
+    SimStoppingPower::eMin = (float)fEmin;
+    SimStoppingPower::eMax = (float)fEmax;
+    SimStoppingPower::eStep = (float)((fEmax - fEmin) / (ne - 1));
     SimStoppingPower::StoppingPowerTable.resize(ne * nmat);
     for (int i = 0; i < nmat; i++) {
         for (int j = 0; j < ne; j++) {

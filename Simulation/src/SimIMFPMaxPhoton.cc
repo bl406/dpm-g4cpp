@@ -3,6 +3,28 @@
 #include <cstdio>
 #include <iostream>
 
+namespace IMFPMaxPhoton {
+	float Emin;
+	float Emax;
+    int NumData;
+    float InvDelta;
+	std::vector<float>  DataX;
+	std::vector<float>  DataY;
+};
+
+void SimIMFPMaxPhoton::initializeTable(){
+    IMFPMaxPhoton::Emax = (float)fEmax;
+    IMFPMaxPhoton::Emin = (float)fEmin;
+	IMFPMaxPhoton::DataX.resize(fData.GetNumData());
+	IMFPMaxPhoton::DataY.resize(fData.GetNumData());
+    IMFPMaxPhoton::InvDelta = (float)fData.GetInvDelta();
+    IMFPMaxPhoton::NumData = fData.GetNumData();
+	for (int i = 0; i < fData.GetNumData(); ++i) {
+		IMFPMaxPhoton::DataX[i] = (float)fData.GetData(i).fX;
+		IMFPMaxPhoton::DataY[i] = (float)fData.GetData(i).fY;
+	}
+}
+
 void  SimIMFPMaxPhoton::LoadData(const std::string& dataDir, int verbose) {
   char name[512];
   sprintf(name, "%s/imfp_globalMax.dat", dataDir.c_str());
@@ -35,4 +57,6 @@ void  SimIMFPMaxPhoton::LoadData(const std::string& dataDir, int verbose) {
     if (i==numData-1) { fEmax = ekin; }
   }
   fclose(f);
+
+  initializeTable();
 }

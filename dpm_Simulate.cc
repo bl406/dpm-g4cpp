@@ -27,9 +27,9 @@
 static std::string   gPrimaryParticle("e-");        // primary particle is electron
 static std::string   gInputDataDir("./data");       // location of the pre-generated data
 static std::string   gOutputFileName("hist.sim");   // the output filename
-static double        gPrimaryEnergy     = 15.0;     // primary particle energy in [MeV]
-static double        gVoxelSize         =  1.0;     // geometry voxel/box size in [mm]
-static int           gNumPrimaries      =  1.0E+5;  // simulate 100 000 primary events
+static float        gPrimaryEnergy     = 15.0f;     // primary particle energy in [MeV]
+static float        gVoxelSize         =  1.0f;     // geometry voxel/box size in [mm]
+static int           gNumPrimaries      =  (int)1.0E+5;  // simulate 100 000 primary events
 static int           gConfigIndex       =  0;       // 0 that corresponds to a homogeneous Water geometry
 //
 static struct option options[] = {
@@ -122,7 +122,7 @@ void GetOpt(int argc, char *argv[]) {
 		gOutputFileName = optarg;
 		break;
     case 'e':
-       gPrimaryEnergy = std::stod(optarg);
+       gPrimaryEnergy = (float)std::stod(optarg);
        break;
     case 'n':
        gNumPrimaries  = std::stoi(optarg);
@@ -131,7 +131,7 @@ void GetOpt(int argc, char *argv[]) {
        gInputDataDir  = optarg;
        break;
     case 'b':
-       gVoxelSize     = std::stod(optarg);
+       gVoxelSize     = (float)std::stod(optarg);
        break;
     case 'c':
        gConfigIndex   = std::stoi(optarg);
