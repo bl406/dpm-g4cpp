@@ -2,23 +2,38 @@
 
 #include <cstdio>
 #include <iostream>
+#include "utils.h"
 
-float SimMaxScatStrength::eStep;
-float SimMaxScatStrength::eMin;
-float SimMaxScatStrength::eMax;
-int SimMaxScatStrength::ne;
-std::vector<float> SimMaxScatStrength::MaxScatStrengthTable;
+namespace MaxScatStrength
+{
+    extern cudaTextureObject_t tex;
+    extern cudaArray_t array;
+    extern __device__ cudaTextureObject_t d_tex;
+};
 
 void SimMaxScatStrength::initializeMaxScatStrengthTable()
 {
-    SimMaxScatStrength::ne = 500;
-	SimMaxScatStrength::eMin = fEmin;
-	SimMaxScatStrength::eMax = fEmax;
-	SimMaxScatStrength::eStep = (fEmax - fEmin) / (ne - 1);
-	SimMaxScatStrength::MaxScatStrengthTable.resize(ne);
+    int ne = 500;
+	float eStep = (float)(fEmax - fEmin) / (ne - 1);
+	cudaMemcpyToSymbol(MaxScatStrength::ne, &ne, sizeof(int));
+    cudaMemcpyToSymbol(MaxScatStrength::Estep, &eStep, sizeof(float));
+    cudaMemcpyToSymbol(MaxScatStrength::Emin, &fEmin, sizeof(float));
+    cudaMemcpyToSymbol(MaxScatStrength::Emax, &fEmax, sizeof(float));
+
+	std::vector<float> data;
+	data.resize(ne);
 	for (int j = 0; j < ne; j++) {
-		MaxScatStrengthTable[j] = GetMaxScatStrength(double(eMin + j * eStep));
+		data[j] = (float)GetMaxScatStrength(double(fEmin + j * eStep));
 	}
+
+    cudaTextureDesc texDesc;
+    memset(&texDesc, 0, sizeof(texDesc));
+    texDesc.normalizedCoords = 0;
+    texDesc.filterMode = cudaFilterModeLinear;
+    texDesc.addressMode[0] = cudaAddressModeClamp;
+
+	initCudaTexture(data.data(), &ne, 1, &texDesc, MaxScatStrength::tex, MaxScatStrength::array);
+    cudaMemcpyToSymbol(MaxScatStrength::d_tex, &MaxScatStrength::tex, sizeof(float));
 }
 
 void  SimMaxScatStrength::LoadData(const std::string& dataDir, int verbose) {

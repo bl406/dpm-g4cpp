@@ -21,10 +21,27 @@
 
 #include "SimDataSpline.hh"
 
+namespace MaxScatStrength
+{
+    extern __constant__ float Estep;
+    extern __constant__ float Emax;
+    extern __constant__ float Emin;
+    extern __constant__ int ne;
+
+    extern cudaTextureObject_t tex;
+    extern cudaArray_t array;
+    extern __device__ cudaTextureObject_t d_tex;
+
+    static __device__ inline float GetMaxScatStrength(float ekin) {
+        // make sure that E_min <= ekin < E_max
+        const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
+		float index = (e - Emin) / Estep;
+		return tex1D<float>(d_tex, index+0.5f);       
+    }
+};
+
 class SimMaxScatStrength {
-    static float eStep, eMin, eMax;
-    static int ne;
-    static std::vector<float> MaxScatStrengthTable;
+
 public:
 
   SimMaxScatStrength() {}
@@ -38,14 +55,6 @@ public:
   // determined by the `slow` and `shigh` parameters with the smooth transition
   // around `ecross`.
   //
-  static inline float GetMaxScatStrength(float ekin) {
-      // make sure that E_min <= ekin < E_max
-      const float e = std::min(SimMaxScatStrength::eMax - 1.0E-6f, std::max(SimMaxScatStrength::eMin, ekin));
-	  int index = (int)((e - SimMaxScatStrength::eMin) / SimMaxScatStrength::eStep);
-	  float weight = (e - SimMaxScatStrength::eMin - index * SimMaxScatStrength::eStep) / SimMaxScatStrength::eStep;
-	  return (1.0f - weight) * MaxScatStrengthTable[index] + weight * MaxScatStrengthTable[index + 1];
-  }
-
   double GetMaxScatStrength(double ekin) {
     // make sure that E_min <= ekin < E_max
     const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));

@@ -53,8 +53,7 @@ void  Simulate(int nprimary, float eprimary, bool iselectron, float lbox,
 // 2. a discrete ioni interaction take place
 // 3. MSC hinge or end of MSC step take place
 // 4. the electron energy drops below zero so stops
-__device__ __host__ int   KeepTrackingElectron(SimMaterialData& matData, Geom& geom, Track& track,
-	float& numElTr1MFP, float& numMollerMFP, float invMollerMFP, float& numBremMFP);
+__device__ int   KeepTrackingElectron(Track& track, float& numElTr1MFP, float& numMollerMFP, float invMollerMFP, float& numBremMFP);
 
 //
 // Keeps tracking a photon till one of the following condition is reached:
@@ -63,7 +62,7 @@ __device__ __host__ int   KeepTrackingElectron(SimMaterialData& matData, Geom& g
 // 3. Photoelectric absoprtion take place
 // Unlike in case of electrons, this function also performs the interactions
 // themself since the photon interactions are very simple in a DPM like simulation
-__device__ __host__ void   KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& geom, Track& track);
+__device__ void   KeepTrackingPhoton(Track& track);
 
 //
 // A set of utility methods:

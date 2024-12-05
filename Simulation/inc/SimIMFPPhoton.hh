@@ -26,100 +26,74 @@
 #include <string>
 
 #include "SimDataLinear.hh"
+#include "cuda_runtime_api.h"
 
 namespace IMFPTotal
 {
-	extern int NumMaterial;
-	extern int NumData;
-	extern float Emin;
-	extern float Emax;
-	extern float InvDelta;
-	extern std::vector<float>  DataX;
-    extern std::vector<float>  DataY;
+	extern __constant__ int NumMaterial;
+	extern __constant__ float Emin;
+	extern __constant__ float Emax;
+	extern __constant__ float InvDelta;
 
-    inline float GetValueAt(int imat, float xval, int ilow) {
-		int index = imat * NumData + ilow;
-        return (DataY[index + 1] - DataY[index]) * (xval - DataX[index]) / (DataX[index + 1] - DataX[index]) 
-            + DataY[index];
-    }
-
-    inline float GetValue(int imat, float xval) {
-        int ilow = (int)((xval - Emin) * InvDelta);
-        ilow = std::max(0, std::min(NumData - 2, ilow));
-        return GetValueAt(imat, xval, ilow);
-    }
+    extern cudaTextureObject_t tex;
+    extern cudaArray_t array;
+    extern __device__ cudaTextureObject_t d_tex;
 
     // the inverse IMFP in [1/mm] [cm3/g] scalled units
-    inline float GetIMFPPerDensity(float ekin, int imat) {
+    inline __device__ float GetIMFPPerDensity(float ekin, int imat) {
         // check vacuum case i.e. imat = -1
         if (imat < 0) return 1.0E-20f;
         // make sure that E_min <= ekin < E_max
-        const float e = std::min(Emax - 1.0E-6f, std::max(Emin, ekin));
-        return std::max(1.0E-20f, GetValue(imat, e));
+        const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
+        float index = (e - Emin) * InvDelta;
+		return tex2D<float>(d_tex, imat+0.5f, index+0.5f);      
     }
 };
 
-namespace IMFPCompton {
-    extern int NumMaterial;
-    extern int NumData;
-    extern float Emin;
-    extern float Emax;
-    extern float InvDelta;
-    extern std::vector<float>  DataX;
-    extern std::vector<float>  DataY;
+namespace IMFPCompton
+{
+    extern __constant__ int NumMaterial;
+    extern __constant__ float Emin;
+    extern __constant__ float Emax;
+    extern __constant__ float InvDelta;
 
-    inline float GetValueAt(int imat, float xval, int ilow) {
-        int index = imat * NumData + ilow;
-        return (DataY[index + 1] - DataY[index]) * (xval - DataX[index]) / (DataX[index + 1] - DataX[index])
-            + DataY[index];
-    }
-
-    inline float GetValue(int imat, float xval) {
-        int ilow = (int)((xval - Emin) * InvDelta);
-        ilow = std::max(0, std::min(NumData - 2, ilow));
-        return GetValueAt(imat, xval, ilow);
-    }
+    extern cudaTextureObject_t tex;
+    extern cudaArray_t array;
+    extern __device__ cudaTextureObject_t d_tex;
 
     // the inverse IMFP in [1/mm] [cm3/g] scalled units
-    inline float GetIMFPPerDensity(float ekin, int imat) {
+    inline __device__ float GetIMFPPerDensity(float ekin, int imat) {
         // check vacuum case i.e. imat = -1
         if (imat < 0) return 1.0E-20f;
         // make sure that E_min <= ekin < E_max
-        const float e = std::min(Emax - 1.0E-6f, std::max(Emin, ekin));
-        return std::max(1.0E-20f, GetValue(imat, e));
+        const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
+        float index = (e - Emin) * InvDelta;
+        return tex2D<float>(d_tex, imat + 0.5f, index + 0.5f);
     }
 };
 
-namespace IMFPPairProd {
-    extern int NumMaterial;
-    extern int NumData;
-    extern float Emin;
-    extern float Emax;
-    extern float InvDelta;
-    extern std::vector<float>  DataX;
-    extern std::vector<float>  DataY;
+namespace IMFPPairProd
+{
+    extern __constant__ int NumMaterial;
+    extern __constant__ float Emin;
+    extern __constant__ float Emax;
+    extern __constant__ float InvDelta;
 
-    inline float GetValueAt(int imat, float xval, int ilow) {
-        int index = imat * NumData + ilow;
-        return (DataY[index + 1] - DataY[index]) * (xval - DataX[index]) / (DataX[index + 1] - DataX[index])
-            + DataY[index];
-    }
-
-    inline float GetValue(int imat, float xval) {
-        int ilow = (int)((xval - Emin) * InvDelta);
-        ilow = std::max(0, std::min(NumData - 2, ilow));
-        return GetValueAt(imat, xval, ilow);
-    }
+    extern cudaTextureObject_t tex;
+    extern cudaArray_t array;
+    extern __device__ cudaTextureObject_t d_tex;
 
     // the inverse IMFP in [1/mm] [cm3/g] scalled units
-    inline float GetIMFPPerDensity(float ekin, int imat) {
+    inline __device__ float GetIMFPPerDensity(float ekin, int imat) {
         // check vacuum case i.e. imat = -1
         if (imat < 0) return 1.0E-20f;
         // make sure that E_min <= ekin < E_max
-        const float e = std::min(Emax - 1.0E-6f, std::max(Emin, ekin));
-        return std::max(1.0E-20f, GetValue(imat, e));
+        const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
+        float index = (e - Emin) * InvDelta;
+        return tex2D<float>(d_tex, imat + 0.5f, index + 0.5f);
     }
 };
+
 
 class SimIMFPPhoton {
 
@@ -146,7 +120,7 @@ public:
 
   void InitializeIMFPTotalTable();
   void InitializeIMFPComptonTable();
-  void InitializeIMFPPairProd();
+  void InitializeIMFPPairProdTable();
 
 private:
 	void DataValidation();    

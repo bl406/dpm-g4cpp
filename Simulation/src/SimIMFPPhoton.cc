@@ -6,36 +6,6 @@
 
 #include "utils.h"
 
-namespace IMFPTotal {
-	int NumMaterial;
-    int NumData;
-    float Emin;
-    float Emax;
-    float InvDelta;
-    std::vector<float>  DataX;
-    std::vector<float>  DataY;
-};
-
-namespace IMFPCompton {
-    int NumMaterial;
-    int NumData;
-    float Emin;
-    float Emax;
-    float InvDelta;
-    std::vector<float>  DataX;
-    std::vector<float>  DataY;
-};
-
-namespace IMFPPairProd {
-    int NumMaterial;
-    int NumData;
-    float Emin;
-    float Emax;
-    float InvDelta;
-    std::vector<float>  DataX;
-    std::vector<float>  DataY;
-};
-
 SimIMFPPhoton::SimIMFPPhoton (int type) {
   // all will be set at LoadData()
   fNumMaterial = -1;
@@ -111,55 +81,100 @@ void SimIMFPPhoton::DataValidation() {
 }
 
 void SimIMFPPhoton::InitializeIMFPTotalTable() {
+
     DataValidation();
 
-    IMFPTotal::NumMaterial = fNumMaterial;
-	IMFPTotal::NumData = fDataPerMaterial[0].GetNumData();
-	IMFPTotal::Emin = (float)fEmin;
-	IMFPTotal::Emax = (float)fEmax;
-	IMFPTotal::InvDelta = (float)fDataPerMaterial[0].GetInvDelta();
-	IMFPTotal::DataX.resize(IMFPTotal::NumMaterial * IMFPTotal::NumData);
-	IMFPTotal::DataY.resize(IMFPTotal::NumMaterial * IMFPTotal::NumData);
-	for (int i = 0; i < fNumMaterial; ++i) {
-		for (int j = 0; j < IMFPTotal::NumData; ++j) {
-			IMFPTotal::DataX[i * IMFPTotal::NumData + j] = (float)fDataPerMaterial[i].GetData(j).fX;
-			IMFPTotal::DataY[i * IMFPTotal::NumData + j] = (float)fDataPerMaterial[i].GetData(j).fY;
+	float InvDelta = (float)fDataPerMaterial[0].GetInvDelta();
+	cudaMemcpyToSymbol(IMFPTotal::NumMaterial, &fNumMaterial, sizeof(int));
+	cudaMemcpyToSymbol(IMFPTotal::Emin, &fEmin, sizeof(float));
+	cudaMemcpyToSymbol(IMFPTotal::Emax, &fEmax, sizeof(float));
+	cudaMemcpyToSymbol(IMFPTotal::InvDelta, &InvDelta, sizeof(float));
+
+    int dim[2] = { fDataPerMaterial[0].GetNumData(), fNumMaterial};
+
+    std::vector<float> DataX, DataY;
+	DataX.resize(dim[0] * dim[1]);
+	DataY.resize(dim[0] * dim[1]);
+	for (int i = 0; i < dim[1]; ++i) {
+		for (int j = 0; j < dim[0]; ++j) {
+			DataX[i * dim[0] + j] = (float)fDataPerMaterial[i].GetData(j).fX;
+			DataY[i * dim[0] + j] = (float)fDataPerMaterial[i].GetData(j).fY;
 		}
 	}
+
+    cudaTextureDesc texDesc;
+    memset(&texDesc, 0, sizeof(texDesc));
+    texDesc.normalizedCoords = 0;
+    texDesc.filterMode = cudaFilterModeLinear;
+    texDesc.addressMode[0] = cudaAddressModeClamp;
+    texDesc.addressMode[1] = cudaAddressModeClamp;
+
+    initCudaTexture(DataY.data(), dim, 2, &texDesc, IMFPTotal::tex, IMFPTotal::array);
+	cudaMemcpyToSymbol(IMFPTotal::d_tex, &IMFPTotal::tex, sizeof(cudaTextureObject_t));
 }
 
 void SimIMFPPhoton::InitializeIMFPComptonTable() {
+
     DataValidation();
 
-    IMFPCompton::NumMaterial = fNumMaterial;
-    IMFPCompton::NumData = fDataPerMaterial[0].GetNumData();
-    IMFPCompton::Emin = (float)fEmin;
-    IMFPCompton::Emax = (float)fEmax;
-    IMFPCompton::InvDelta = (float)fDataPerMaterial[0].GetInvDelta();
-    IMFPCompton::DataX.resize(IMFPCompton::NumMaterial * IMFPCompton::NumData);
-    IMFPCompton::DataY.resize(IMFPCompton::NumMaterial * IMFPCompton::NumData);
-    for (int i = 0; i < fNumMaterial; ++i) {
-        for (int j = 0; j < IMFPCompton::NumData; ++j) {
-            IMFPCompton::DataX[i * IMFPCompton::NumData + j] = (float)fDataPerMaterial[i].GetData(j).fX;
-            IMFPCompton::DataY[i * IMFPCompton::NumData + j] = (float)fDataPerMaterial[i].GetData(j).fY;
+    float InvDelta = (float)fDataPerMaterial[0].GetInvDelta();
+    cudaMemcpyToSymbol(IMFPCompton::NumMaterial, &fNumMaterial, sizeof(int));
+    cudaMemcpyToSymbol(IMFPCompton::Emin, &fEmin, sizeof(float));
+    cudaMemcpyToSymbol(IMFPCompton::Emax, &fEmax, sizeof(float));
+    cudaMemcpyToSymbol(IMFPCompton::InvDelta, &InvDelta, sizeof(float));
+
+    int dim[2] = { fDataPerMaterial[0].GetNumData(), fNumMaterial };
+
+    std::vector<float> DataX, DataY;
+    DataX.resize(dim[0] * dim[1]);
+    DataY.resize(dim[0] * dim[1]);
+    for (int i = 0; i < dim[1]; ++i) {
+        for (int j = 0; j < dim[0]; ++j) {
+            DataX[i * dim[0] + j] = (float)fDataPerMaterial[i].GetData(j).fX;
+            DataY[i * dim[0] + j] = (float)fDataPerMaterial[i].GetData(j).fY;
         }
     }
+
+    cudaTextureDesc texDesc;
+    memset(&texDesc, 0, sizeof(texDesc));
+    texDesc.normalizedCoords = 0;
+    texDesc.filterMode = cudaFilterModeLinear;
+    texDesc.addressMode[0] = cudaAddressModeClamp;
+    texDesc.addressMode[1] = cudaAddressModeClamp;
+
+    initCudaTexture(DataY.data(), dim, 2, &texDesc, IMFPCompton::tex, IMFPCompton::array);
+    cudaMemcpyToSymbol(IMFPCompton::d_tex, &IMFPTotal::tex, sizeof(cudaTextureObject_t));
 }
 
-void SimIMFPPhoton::InitializeIMFPPairProd() {
+void SimIMFPPhoton::InitializeIMFPPairProdTable() {
+
     DataValidation();
 
-    IMFPPairProd::NumMaterial = fNumMaterial;
-    IMFPPairProd::NumData = fDataPerMaterial[0].GetNumData();
-    IMFPPairProd::Emin = (float)fEmin;
-    IMFPPairProd::Emax = (float)fEmax;
-    IMFPPairProd::InvDelta = (float)fDataPerMaterial[0].GetInvDelta();
-    IMFPPairProd::DataX.resize(IMFPPairProd::NumMaterial * IMFPPairProd::NumData);
-    IMFPPairProd::DataY.resize(IMFPPairProd::NumMaterial * IMFPPairProd::NumData);
-    for (int i = 0; i < fNumMaterial; ++i) {
-        for (int j = 0; j < IMFPPairProd::NumData; ++j) {
-            IMFPPairProd::DataX[i * IMFPPairProd::NumData + j] = (float)fDataPerMaterial[i].GetData(j).fX;
-            IMFPPairProd::DataY[i * IMFPPairProd::NumData + j] = (float)fDataPerMaterial[i].GetData(j).fY;
+    float InvDelta = (float)fDataPerMaterial[0].GetInvDelta();
+    cudaMemcpyToSymbol(IMFPPairProd::NumMaterial, &fNumMaterial, sizeof(int));
+    cudaMemcpyToSymbol(IMFPPairProd::Emin, &fEmin, sizeof(float));
+    cudaMemcpyToSymbol(IMFPPairProd::Emax, &fEmax, sizeof(float));
+    cudaMemcpyToSymbol(IMFPPairProd::InvDelta, &InvDelta, sizeof(float));
+
+    int dim[2] = { fDataPerMaterial[0].GetNumData(), fNumMaterial };
+
+    std::vector<float> DataX, DataY;
+    DataX.resize(dim[0] * dim[1]);
+    DataY.resize(dim[0] * dim[1]);
+    for (int i = 0; i < dim[1]; ++i) {
+        for (int j = 0; j < dim[0]; ++j) {
+            DataX[i * dim[0] + j] = (float)fDataPerMaterial[i].GetData(j).fX;
+            DataY[i * dim[0] + j] = (float)fDataPerMaterial[i].GetData(j).fY;
         }
     }
+
+    cudaTextureDesc texDesc;
+    memset(&texDesc, 0, sizeof(texDesc));
+    texDesc.normalizedCoords = 0;
+    texDesc.filterMode = cudaFilterModeLinear;
+    texDesc.addressMode[0] = cudaAddressModeClamp;
+    texDesc.addressMode[1] = cudaAddressModeClamp;
+
+    initCudaTexture(DataY.data(), dim, 2, &texDesc, IMFPPairProd::tex, IMFPPairProd::array);
+    cudaMemcpyToSymbol(IMFPPairProd::d_tex, &IMFPTotal::tex, sizeof(cudaTextureObject_t));
 }
