@@ -17,7 +17,7 @@ Geom::Geom(float lbox, SimMaterialData* matData, int geomIndex)
 }
 
 
-float Geom::DistanceToBoundary(float* r, float* v, int* i) {
+__device__ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
   static float kHalfTolerance = 0.5f*kTolerance;
   //
   // Let's say that kExtent is the max extent of our geometry except the -z
@@ -130,7 +130,7 @@ void Geom::Score(float edep, int iz) {
 }
 
 
-int Geom::GetMaterialIndex(int* i) {
+__device__ int Geom::GetMaterialIndex(int* i) {
   const int iz = i[2];
   // vacuum
   if (iz < 0) {
@@ -189,4 +189,8 @@ void Geom::Write(const std::string& fname, int nprimaries) {
   }
   fclose(f);
   std::cout << " === Energy deposit histogram is written to the file:  " << fname << "\n" << std::endl;
+}
+
+void Geom::Initialize() {
+	initCudaTexture(Geom::arrRegMed, fMaterialData->fMaterialDensity, fMaterialData->fNumMaterials);
 }

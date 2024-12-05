@@ -1,8 +1,19 @@
 #----------------------------------------------------------------------------
 # Setup the project
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.18)
 project (dpm++)
 
+
+# 启用CUDA语言
+enable_language(CUDA)
+# 查找CUDA
+find_package(CUDA REQUIRED)
+# 设置CUDA编译选项
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};
+    -O3 # 优化
+    -g   # 调试信息
+    -arch=sm_70 # 针对的GPU架构，根据需要修改
+  )
 
 #----------------------------------------------------------------------------
 # Find Geant4 package
@@ -62,7 +73,9 @@ include_directories ( ${CMAKE_SOURCE_DIR}/getopt
                       ${CMAKE_SOURCE_DIR}/Utils/inc
                       ${CMAKE_SOURCE_DIR}/Simulation/inc/
                       ${CMAKE_SOURCE_DIR}/modelValidationTests/inc/
+                      ${CUDAToolkit_INCLUDE_DIRS}
                     )
+
 
 #----------------------------------------------------------------------------
 # Build target
@@ -79,9 +92,10 @@ add_executable ( dpm_GenerateData ${CMAKE_SOURCE_DIR}/dpm_GenerateData.cc ${cxx_
 target_link_libraries (dpm_GenerateData  ${Geant4_LIBRARIES})
 
 add_executable ( dpm_Simulate ${CMAKE_SOURCE_DIR}/dpm_Simulate.cc ${cxx_sources_SIM})
-target_link_libraries (dpm_Simulate ${GETOPT_LIBRARIES})
+target_compile_options(dpm_Simulate PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${NVCC_FLAGS}>)
+target_link_libraries (dpm_Simulate PUBLIC ${GETOPT_LIBRARIES} cudart_static.lib)
 target_compile_definitions(dpm_Simulate PRIVATE _CRT_SECURE_NO_WARNINGS)
-
+set_target_properties(dpm_Simulate PROPERTIES CUDA_SEPARABLE_COMPILATION ON CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 
 ## add model level test for bremsstrahlung
 add_executable ( test_brem ${CMAKE_SOURCE_DIR}/test_brem.cc ${cxx_sources_SIM})

@@ -53,7 +53,7 @@ void  Simulate(int nprimary, float eprimary, bool iselectron, float lbox,
 // 2. a discrete ioni interaction take place
 // 3. MSC hinge or end of MSC step take place
 // 4. the electron energy drops below zero so stops
-int   KeepTrackingElectron(SimMaterialData& matData, Geom& geom, Track& track, 
+__device__ __host__ int   KeepTrackingElectron(SimMaterialData& matData, Geom& geom, Track& track,
 	float& numElTr1MFP, float& numMollerMFP, float invMollerMFP, float& numBremMFP);
 
 //
@@ -63,7 +63,7 @@ int   KeepTrackingElectron(SimMaterialData& matData, Geom& geom, Track& track,
 // 3. Photoelectric absoprtion take place
 // Unlike in case of electrons, this function also performs the interactions
 // themself since the photon interactions are very simple in a DPM like simulation
-void   KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& geom, Track& track);
+__device__ __host__ void   KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& geom, Track& track);
 
 //
 // A set of utility methods:
@@ -76,8 +76,8 @@ void   KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom&
 // original direction, the real original direction [u1,u2,u3] in the lab frame
 // needs to be accounted and the final new direction, i.e. in the lab frame is
 // computed.
-void   RotateToLabFrame(float&u, float&v, float&w, float u1, float u2, float u3);
-void   RotateToLabFrame(float* dir, float* refdir);
+__device__ __host__ void   RotateToLabFrame(float&u, float&v, float&w, float u1, float u2, float u3);
+__device__ __host__ void   RotateToLabFrame(float* dir, float* refdir);
 
 // Auxiliary funtion for bremsstrahlung final state generation.
 void   PerformBrem(Track& track, SimSBTables* theSBTable);
@@ -88,10 +88,10 @@ void   PerformMoller(Track& track, SimMollerTables* theMollerTable);
 //       while it needs to be computed at the e- energy at the pre-step point.
 //       The pre-step point kinetic energy is `ekin0` while the current kinetic
 //       energy is `track.fEkin`.
-void PerformMSCAngularDeflection(Track& track, float ekin0);
+__device__ __host__ void PerformMSCAngularDeflection(Track& track, float ekin0);
 
 
 // Auxiliary funtion for simple e+e- annihilation
-void   PerformAnnihilation(Track& track);
+__device__ __host__ void   PerformAnnihilation(Track& track);
 
 #endif // SimDPMLike_HH
