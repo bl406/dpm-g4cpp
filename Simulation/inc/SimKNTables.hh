@@ -22,6 +22,22 @@
 
 class SimLinAliasData;
 
+namespace KNTables {
+	
+	extern int  SamplingTableSize;
+	extern int  NumPrimaryEnergies;
+	extern float MinPrimaryEnergy;
+	extern float LogMinPrimaryEnergy;
+	extern float InvLogDeltaPrimaryEnergy;
+
+	extern std::vector<float> XdataTable;
+	extern std::vector<float> YdataTable;
+	extern std::vector<float> AliasWTable;
+	extern std::vector<int>   AliasIndxTable;
+
+	float SampleEnergyTransfer(float egamma, float rndm1, float rndm2, float rndm3);
+}
+
 
 class SimKNTables {
 
@@ -45,6 +61,8 @@ public:
 
 
 private:
+
+	void InitializeTables();
 
   void   CleanTables();
 
