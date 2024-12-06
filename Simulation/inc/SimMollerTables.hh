@@ -21,18 +21,26 @@
 
 class SimLinAliasData;
 
+namespace MollerTables {
+	extern __constant__ int   SampleTableSize;
+	extern __constant__ int   NumPrimaryEnergies;
+	extern __constant__ float MinPrimaryEnergy;
+	extern __constant__ float LogMinPrimaryEnergy;
+	extern __constant__ float InvLogDeltaPrimaryEnergy;
+
+	extern cudaArray_t arrXdata;
+	extern cudaArray_t arrYdata;
+	extern cudaArray_t arrAliasW;
+	extern cudaArray_t arrAliasIndx;
+
+	extern cudaTextureObject_t texXdata, texYdata, texAliasW, texAliasIndx;
+	extern __device__ cudaTextureObject_t d_texXdata, d_texYdata, d_texAliasW, d_texAliasIndx;
+
+	extern __device__ float Sample(int penergyindx, float rndm1, float rndm2);
+	extern __device__ float SampleEnergyTransfer(float eprim, float rndm1, float rndm2, float rndm3);
+}
 
 class SimMollerTables {
-	static int SampleTableSize;
-	static int NumPrimaryEnergies;
-	static float MinPrimaryEnergy;
-	static float LogMinPrimaryEnergy;
-	static float InvLogDeltaPrimaryEnergy;
-
-	static std::vector<float> XdataTable;
-	static std::vector<float> YdataTable;
-	static std::vector<float> AliasWTable;
-	static std::vector<int> AliasIndxTable;
 public:
 
   // CTR and DTR
@@ -48,11 +56,7 @@ public:
   // additional input arguments are uniformly random values on [0,1].
   //
   // NOTE: it is assumed that: 2 x electron-cut < eprim < E_max (also for e+)
-  static float Sample(int penergyindx, float rndm1, float rndm2);
-  static float SampleEnergyTransfer(float eprim, float rndm1, float rndm2, float rndm3);
   double SampleEnergyTransfer(double eprim, double rndm1, double rndm2, double rndm3);
-
-
 
 private:
 

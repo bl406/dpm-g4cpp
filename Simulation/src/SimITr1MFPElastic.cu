@@ -4,16 +4,21 @@
 #include <iostream>
 #include "Utils.h"
 
+namespace ITr1MFPElastic{
+    cudaArray_t array;
+    cudaTextureObject_t tex;
+    __device__ cudaTextureObject_t d_tex;
+};
+
 void SimITr1MFPElastic::initializeITr1MFPTable(){
     int ne = 500;
     float Estep = (float)(fEmax - fEmin) / ne;
 	float auxilary;
+    cudaMemcpyToSymbol(ITr1MFPElastic::ne, &ne, sizeof(int));
 	auxilary = fEmax;
     cudaMemcpyToSymbol(ITr1MFPElastic::Emax, &auxilary, sizeof(float));
 	auxilary = fEmin;
-    cudaMemcpyToSymbol(ITr1MFPElastic::Emin, &auxilary, sizeof(float));
-    cudaMemcpyToSymbol(ITr1MFPElastic::ne, &ne, sizeof(int));
-    cudaMemcpyToSymbol(ITr1MFPElastic::nmat, &fNumMaterial, sizeof(int));
+    cudaMemcpyToSymbol(ITr1MFPElastic::Emin, &auxilary, sizeof(float));   
 	auxilary = Estep;
     cudaMemcpyToSymbol(ITr1MFPElastic::Estep, &auxilary, sizeof(float));
 
@@ -31,7 +36,11 @@ void SimITr1MFPElastic::initializeITr1MFPTable(){
     texDesc.filterMode = cudaFilterModeLinear;
     texDesc.addressMode[0] = cudaAddressModeClamp;
     texDesc.addressMode[1] = cudaAddressModeClamp;
-	initCudaTexture(ITr1MFPPerDensityTable.data(), &ne, 1, &texDesc, ITr1MFPElastic::tex, ITr1MFPElastic::array);
+
+	int size[2] = { ne, fNumMaterial };
+	initCudaTexture(ITr1MFPPerDensityTable.data(), size, 2, &texDesc, ITr1MFPElastic::tex, ITr1MFPElastic::array);
+
+	cudaMemcpyToSymbol(ITr1MFPElastic::d_tex, &ITr1MFPElastic::tex, sizeof(cudaTextureObject_t));
 }
 
 SimITr1MFPElastic::SimITr1MFPElastic() {

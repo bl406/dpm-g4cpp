@@ -8,24 +8,39 @@
 #include "Utils.h"
 
 namespace SBTables {
+    cudaArray_t arrXdata;
+    cudaArray_t arrYdata;
+    cudaArray_t arrAliasW;
+    cudaArray_t arrAliasIndx;
+
+    cudaTextureObject_t texXdata;
+    cudaTextureObject_t texYdata;
+    cudaTextureObject_t texAliasW;
+    cudaTextureObject_t texAliasIndx;
+
+    __device__ cudaTextureObject_t d_texXdata;
+    __device__ cudaTextureObject_t d_texYdata;
+    __device__ cudaTextureObject_t d_texAliasW;
+    __device__ cudaTextureObject_t d_texAliasIndx;
+
     __device__ float Sample(int imat, int penergyindx, float rndm1, float rndm2) {
         // get the lower index of the bin by using the alias part
-        double rest = rndm1 * (SamplingTableSize - 1);
+        float rest = rndm1 * (SamplingTableSize - 1);
         int    indxl = (int)(rest);
 
         if (tex3D<float>(d_texAliasW, imat, penergyindx, indxl) < rest - indxl)
-            indxl = tex3D<float>(d_texAliasIndx, imat, penergyindx, indxl);
+            indxl = tex3D<int>(d_texAliasIndx, indxl + 0.5f, penergyindx + 0.5f, imat + 0.5f);
 
         // sample value within the selected bin by using linear aprox. of the p.d.f.
-        double xval = tex3D<float>(d_texXdata, imat, penergyindx, indxl);
-        double xdelta = tex3D<float>(d_texXdata, imat, penergyindx, indxl+1) - xval;
-        float yval = tex3D<float>(d_texYdata, imat, penergyindx, indxl);
-        if (yval > 0.0) {
-            double dum = (tex3D<float>(d_texYdata, imat, penergyindx, indxl+1) - yval) / yval;
-            if (std::abs(dum) > 0.1)
-                return xval - xdelta / dum * (1.0 - std::sqrt(1.0 + rndm2 * dum * (dum + 2.0)));
+        float xval = tex3D<float>(d_texXdata, indxl + 0.5f, penergyindx + 0.5f, imat + 0.5f);
+        float xdelta = tex3D<float>(d_texXdata, indxl + 1 + 0.5f, penergyindx + 0.5f, imat + 0.5f) - xval;
+        float yval = tex3D<float>(d_texYdata, indxl + 0.5f, penergyindx + 0.5f, imat + 0.5f);
+        if (yval > 0.0f) {
+            float dum = (tex3D<float>(d_texYdata, indxl + 1 + 0.5f, penergyindx + 0.5f, imat + 0.5f) - yval) / yval;
+            if (std::abs(dum) > 0.1f)
+                return xval - xdelta / dum * (1.0f - std::sqrt(1.0f + rndm2 * dum * (dum + 2.0f)));
             else // use second order Taylor around dum = 0.0
-                return xval + rndm2 * xdelta * (1.0 - 0.5 * dum * (rndm2 - 1.0) * (1.0 + dum * rndm2));
+                return xval + rndm2 * xdelta * (1.0f - 0.5f * dum * (rndm2 - 1.0f) * (1.0f + dum * rndm2));
         }
         return xval + xdelta * std::sqrt(rndm2);
     }
@@ -35,8 +50,8 @@ namespace SBTables {
     {
         if (imat < 0) return 0.0;
         // determine the primary electron energy lower grid point and sample if that or one above is used now
-        double lpenergy = std::log(eprim);
-        double phigher = (lpenergy - LogMinPrimaryEnergy) * InvLogDeltaPrimaryEnergy;
+        float lpenergy = std::log(eprim);
+        float phigher = (lpenergy - LogMinPrimaryEnergy) * InvLogDeltaPrimaryEnergy;
         int penergyindx = (int)phigher;
         phigher -= penergyindx;
         if (rndm1 < phigher) {
@@ -45,13 +60,13 @@ namespace SBTables {
         // should always be fine if gamma-cut < eprim < E_max but make sure
       //  penergyindx       = std::min(fNumPrimaryEnergies-2, penergyindx);
         // sample the transformed variable
-        const double     xi = Sample(imat, penergyindx, rndm2, rndm3);
+        const float     xi = Sample(imat, penergyindx, rndm2, rndm3);
         // transform it back to kappa then to gamma energy (fMinPrimaryEnergy = gcut
         // and fLogMinPrimaryEnergy = log(gcut) so log(kappac) = log(gcut/eprim) =
         // = fLogMinPrimaryEnergy - lpenergy = -(lpenergy - fLogMinPrimaryEnergy) that
         // is computed above but keep it visible here)
-        const double kappac = MinPrimaryEnergy / eprim;
-        const double kappa = kappac * std::exp(-xi * (LogMinPrimaryEnergy - lpenergy));
+        const float kappac = MinPrimaryEnergy / eprim;
+        const float kappa = kappac * std::exp(-xi * (LogMinPrimaryEnergy - lpenergy));
         return kappa * eprim;
     }
 
@@ -64,11 +79,11 @@ void SimSBTables::InitializeTables()
 	cudaMemcpyToSymbol(SBTables::NumMaterial, &fNumMaterial, sizeof(int));
 	cudaMemcpyToSymbol(SBTables::SamplingTableSize, &fSamplingTableSize, sizeof(int));
 	cudaMemcpyToSymbol(SBTables::NumPrimaryEnergies, &fNumPrimaryEnergies, sizeof(int));
-    auxilary = fMinPrimaryEnergy;
+    auxilary = (float)fMinPrimaryEnergy;
 	cudaMemcpyToSymbol(SBTables::MinPrimaryEnergy, &auxilary, sizeof(float));
-	auxilary = fLogMinPrimaryEnergy;
+	auxilary = (float)fLogMinPrimaryEnergy;
 	cudaMemcpyToSymbol(SBTables::LogMinPrimaryEnergy, &auxilary, sizeof(float));
-	auxilary = fInvLogDeltaPrimaryEnergy;
+	auxilary = (float)fInvLogDeltaPrimaryEnergy;
 	cudaMemcpyToSymbol(SBTables::InvLogDeltaPrimaryEnergy, &auxilary, sizeof(float));
 
 
@@ -86,9 +101,9 @@ void SimSBTables::InitializeTables()
         for (int ie = 0; ie < fNumPrimaryEnergies; ++ie) {
             for (int is = 0; is < fSamplingTableSize; ++is) {
                 index = im * fNumPrimaryEnergies * fSamplingTableSize + ie * fSamplingTableSize + is;
-                XdataTable[index] = fTheTables[im][ie]->GetOnePoint(is).fXdata;
-                YdataTable[index] = fTheTables[im][ie]->GetOnePoint(is).fYdata;
-                AliasWTable[index] = fTheTables[im][ie]->GetOnePoint(is).fAliasW;
+                XdataTable[index] = (float)fTheTables[im][ie]->GetOnePoint(is).fXdata;
+                YdataTable[index] = (float)fTheTables[im][ie]->GetOnePoint(is).fYdata;
+                AliasWTable[index] = (float)fTheTables[im][ie]->GetOnePoint(is).fAliasW;
                 AliasIndxTable[index] = fTheTables[im][ie]->GetOnePoint(is).fAliasIndx;
             }
         }

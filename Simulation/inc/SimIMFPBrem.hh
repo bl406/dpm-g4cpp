@@ -38,7 +38,7 @@ namespace IMFPBrem {
 		// make sure that E_min <= ekin < E_max
 		const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
 		float index = (e - Emin) / Estep;
-		return tex2D<float>(d_tex, imat + 0.5f, index + 0.5f);
+		return tex2D<float>(d_tex, index + 0.5f, imat + 0.5f);
 	}
 };
 

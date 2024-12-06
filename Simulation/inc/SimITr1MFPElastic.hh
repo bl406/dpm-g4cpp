@@ -27,17 +27,16 @@ namespace ITr1MFPElastic {
     extern __constant__ float Emin;
     extern __constant__ float Emax;
     extern __constant__ int ne;
-    extern __constant__ int nmat;
 
     extern cudaArray_t array;
     extern cudaTextureObject_t tex;
     extern __device__ cudaTextureObject_t d_tex;
 
-    static inline float GetITr1MFPPerDensity(float ekin, int imat) {
+    __device__ extern  inline float GetITr1MFPPerDensity(float ekin, int imat) {
         // make sure that E_min <= ekin < E_max
-        const float e = std::min(Emax - 1.0E-6f, std::max(Emin, ekin));
+        const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
         float index = (e - Emin) / Estep;
-		return tex2D<float>(d_tex, imat + 0.5f, index + 0.5f);      
+		return tex2D<float>(d_tex, index + 0.5f, imat + 0.5f);
     }
 }
 

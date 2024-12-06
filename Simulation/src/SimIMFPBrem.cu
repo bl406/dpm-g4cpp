@@ -4,18 +4,24 @@
 #include <iostream>
 #include "Utils.h"
 
+namespace IMFPBrem {
+    cudaArray_t array;
+    cudaTextureObject_t tex;
+    __device__ cudaTextureObject_t d_tex;
+};
+
 void SimIMFPBrem::initializeIMFPBremTable()
 {
     int ne = 500;
     float Estep = (float)(fEmax - fEmin) / ne;
     float auxilary;
-    auxilary = fEmax;
+    auxilary = (float)fEmax;
     cudaMemcpyToSymbol(IMFPBrem::Emax, &auxilary, sizeof(float));
-	auxilary = fEmin;
+	auxilary = (float)fEmin;
     cudaMemcpyToSymbol(IMFPBrem::Emin, &auxilary, sizeof(float));
     cudaMemcpyToSymbol(IMFPBrem::ne, &ne, sizeof(int));
     cudaMemcpyToSymbol(IMFPBrem::nmat, &fNumMaterial, sizeof(int));
-	auxilary = Estep;
+	auxilary = (float)Estep;
     cudaMemcpyToSymbol(IMFPBrem::Estep, &auxilary, sizeof(float));
 
     std::vector<float> table;
@@ -33,6 +39,8 @@ void SimIMFPBrem::initializeIMFPBremTable()
     texDesc.addressMode[0] = cudaAddressModeClamp;
     texDesc.addressMode[1] = cudaAddressModeClamp;
     initCudaTexture(table.data(), &ne, 1, &texDesc, IMFPBrem::tex, IMFPBrem::array);
+
+	cudaMemcpyToSymbol(IMFPBrem::d_tex, &IMFPBrem::tex, sizeof(cudaTextureObject_t));
 }
 
 SimIMFPBrem::SimIMFPBrem () {

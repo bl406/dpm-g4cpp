@@ -162,7 +162,7 @@ __global__ void Simulate_kernel(Track track)
 			  //       Furthermore, note that Moller interaction is independent from Z
 		case 2: {
 			// perform ionisation (Moller) intraction but only if E0 > 2cut
-			if (track.fEkin > 2. * theElectronCut) {
+			if (track.fEkin > 2. * Geometry::ElectronCut) {
 				PerformMoller(track, elData.GetTheMollerTables());
 			}
 			// Resample #mfp left and interpolate the IMFP since the enrgy has been changed.
@@ -589,7 +589,7 @@ __device__ void KeepTrackingPhoton(Track& track) {
 }
 
 
-__device__ __host__ void RotateToLabFrame(float &u, float &v, float &w, float u1, float u2, float u3) {
+__device__ void RotateToLabFrame(float &u, float &v, float &w, float u1, float u2, float u3) {
   float up = u1*u1 + u2*u2;
   if (up>0.) {
     up = std::sqrt(up);
@@ -599,20 +599,20 @@ __device__ __host__ void RotateToLabFrame(float &u, float &v, float &w, float u1
     u = (u1*u3*px - u2*py)/up + u1*pz;
     v = (u2*u3*px + u1*py)/up + u2*pz;
     w =    -up*px +             u3*pz;
-  } else if (u3<0.) {       // phi=0  teta=pi
+  } else if (u3<0.f) {       // phi=0  teta=pi
     u = -u;
     w = -w;
   }
 }
 
-__device__ __host__ void RotateToLabFrame(float* dir, float* refdir) {
+__device__ void RotateToLabFrame(float* dir, float* refdir) {
   RotateToLabFrame(dir[0], dir[1], dir[2], refdir[0], refdir[1], refdir[2]);
 }
 
 
 // It is assumed that track.fEkin > gamma-cut!
 // (Interaction is not possible otherwise)
-__device__ __host__ void PerformBrem(Track& track) {
+__device__ void PerformBrem(Track& track) {
   const float kPI            = 3.1415926535897932f;
   const float kEMC2          = 0.510991f;
   const float kHalfSqrt2EMC2 = kEMC2 * 0.7071067812f;

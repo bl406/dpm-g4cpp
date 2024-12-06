@@ -2,27 +2,37 @@
 
 #include <cstdio>
 #include <iostream>
+#include "Utils.h"  
 
 namespace IMFPMaxPhoton {
-	float Emin;
-	float Emax;
-    int NumData;
-    float InvDelta;
-	std::vector<float>  DataX;
-	std::vector<float>  DataY;
-};
+    cudaArray_t array;
+    cudaTextureObject_t tex;
+    __device__ cudaTextureObject_t d_tex;
+}
 
 void SimIMFPMaxPhoton::initializeTable(){
-    IMFPMaxPhoton::Emax = (float)fEmax;
-    IMFPMaxPhoton::Emin = (float)fEmin;
-	IMFPMaxPhoton::DataX.resize(fData.GetNumData());
-	IMFPMaxPhoton::DataY.resize(fData.GetNumData());
-    IMFPMaxPhoton::InvDelta = (float)fData.GetInvDelta();
-    IMFPMaxPhoton::NumData = fData.GetNumData();
+    float aux;
+	aux = (float)fEmin;
+    cudaMemcpyToSymbol(IMFPMaxPhoton::Emin, &aux, sizeof(int));
+	aux = (float)fEmax;
+	cudaMemcpyToSymbol(IMFPMaxPhoton::Emax, &aux, sizeof(int));
+	aux = (float)fData.GetInvDelta();
+	cudaMemcpyToSymbol(IMFPMaxPhoton::InvDelta, &aux, sizeof(int));
+
+	std::vector<float> DataY;
 	for (int i = 0; i < fData.GetNumData(); ++i) {
-		IMFPMaxPhoton::DataX[i] = (float)fData.GetData(i).fX;
-		IMFPMaxPhoton::DataY[i] = (float)fData.GetData(i).fY;
+		DataY[i] = (float)fData.GetData(i).fY;
 	}
+
+    cudaTextureDesc texDesc;
+    memset(&texDesc, 0, sizeof(texDesc));
+    texDesc.normalizedCoords = 0;
+    texDesc.filterMode = cudaFilterModeLinear;
+    texDesc.addressMode[0] = cudaAddressModeClamp;   
+	int NumData = fData.GetNumData();
+    initCudaTexture(DataY.data(), &NumData, 1, &texDesc, IMFPMaxPhoton::tex, IMFPMaxPhoton::array);
+
+	cudaMemcpyToSymbol(IMFPMaxPhoton::d_tex, &IMFPMaxPhoton::tex, sizeof(cudaTextureObject_t));
 }
 
 void  SimIMFPMaxPhoton::LoadData(const std::string& dataDir, int verbose) {

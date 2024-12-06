@@ -4,10 +4,16 @@
 #include <iostream>
 #include "Utils.h"
 
+namespace StoppingPower {
+    extern cudaArray_t array;
+    extern cudaTextureObject_t tex;
+    extern __device__ cudaTextureObject_t d_tex;
+}
+
 void SimStoppingPower::initializeStoppingPowerTable()
 {
     int ne = 500;
-	float Estep = (fEmax - fEmin) / ne;
+	float Estep = (float)(fEmax - fEmin) / ne;
 	cudaMemcpyToSymbol(StoppingPower::Emax, &fEmax, sizeof(float));
 	cudaMemcpyToSymbol(StoppingPower::Emin, &fEmin, sizeof(float));
 	cudaMemcpyToSymbol(StoppingPower::ne, &ne, sizeof(int));
@@ -18,7 +24,7 @@ void SimStoppingPower::initializeStoppingPowerTable()
     StoppingPowerTable.resize(ne * fNumMaterial);
     for (int i = 0; i < fNumMaterial; i++) {
         for (int j = 0; j < ne; j++) {
-            StoppingPowerTable[i * ne + j] = GetDEDXPerDensity(double(fEmin + j * Estep), i);
+            StoppingPowerTable[i * ne + j] = (float)GetDEDXPerDensity(double(fEmin + j * Estep), i);
         }
     }
 
@@ -28,7 +34,8 @@ void SimStoppingPower::initializeStoppingPowerTable()
     texDesc.filterMode = cudaFilterModeLinear;
     texDesc.addressMode[0] = cudaAddressModeClamp;
     texDesc.addressMode[1] = cudaAddressModeClamp;
-	initCudaTexture(StoppingPowerTable.data(), &ne, 1, &texDesc, StoppingPower::tex, StoppingPower::array);
+	int size[2] = { ne, fNumMaterial };
+	initCudaTexture(StoppingPowerTable.data(), size, 2, &texDesc, StoppingPower::tex, StoppingPower::array);
 }
 
 SimStoppingPower::SimStoppingPower () {

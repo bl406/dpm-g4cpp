@@ -23,17 +23,29 @@
 class SimLinAliasData;
 
 namespace KNTables {
-	extern int SamplingTableSize;
-	extern int NumPrimaryEnergies;
-	extern float MinPrimaryEnergy;
-	extern float LogMinPrimaryEnergy;
-	extern float InvLogDeltaPrimaryEnergy;
-	extern std::vector<float> Xdata;
-	extern std::vector<float> Ydata;
-	extern std::vector<float> AliasW;
-	extern std::vector<int> AliasIndex;
+	extern __constant__ int SamplingTableSize;
+	extern __constant__ int NumPrimaryEnergies;
+	extern __constant__ float MinPrimaryEnergy;
+	extern __constant__ float LogMinPrimaryEnergy;
+	extern __constant__ float InvLogDeltaPrimaryEnergy;
 
-	extern float SampleEnergyTransfer(float egamma, float rndm1, float rndm2, float rndm3);
+	extern cudaArray_t arrXdata;
+	extern cudaArray_t arrYdata;
+	extern cudaArray_t arrAliasW;
+	extern cudaArray_t arrAliasIndx;
+
+	extern cudaTextureObject_t texXdata;
+	extern cudaTextureObject_t texYdata;
+	extern cudaTextureObject_t texAliasW;
+	extern cudaTextureObject_t texAliasIndx;
+
+	extern __device__ cudaTextureObject_t d_texXdata;
+	extern __device__ cudaTextureObject_t d_texYdata;
+	extern __device__ cudaTextureObject_t d_texAliasW;
+	extern __device__ cudaTextureObject_t d_texAliasIndx;
+
+	extern __device__ float Sample(int ienergy, float rndm1, float rndm2);
+	extern __device__ float SampleEnergyTransfer(float egamma, float rndm1, float rndm2, float rndm3);
 };
 
 class SimKNTables {

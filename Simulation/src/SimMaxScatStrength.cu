@@ -15,10 +15,14 @@ void SimMaxScatStrength::initializeMaxScatStrengthTable()
 {
     int ne = 500;
 	float eStep = (float)(fEmax - fEmin) / (ne - 1);
+    float aux;
 	cudaMemcpyToSymbol(MaxScatStrength::ne, &ne, sizeof(int));
-    cudaMemcpyToSymbol(MaxScatStrength::Estep, &eStep, sizeof(float));
-    cudaMemcpyToSymbol(MaxScatStrength::Emin, &fEmin, sizeof(float));
-    cudaMemcpyToSymbol(MaxScatStrength::Emax, &fEmax, sizeof(float));
+	aux = eStep;
+    cudaMemcpyToSymbol(MaxScatStrength::Estep, &aux, sizeof(float));
+	aux = fEmin;
+    cudaMemcpyToSymbol(MaxScatStrength::Emin, &aux, sizeof(float));
+	aux = fEmax;
+    cudaMemcpyToSymbol(MaxScatStrength::Emax, &aux, sizeof(float));
 
 	std::vector<float> data;
 	data.resize(ne);

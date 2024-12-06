@@ -75,22 +75,22 @@ __device__ void   KeepTrackingPhoton(Track& track);
 // original direction, the real original direction [u1,u2,u3] in the lab frame
 // needs to be accounted and the final new direction, i.e. in the lab frame is
 // computed.
-__device__ __host__ void   RotateToLabFrame(float&u, float&v, float&w, float u1, float u2, float u3);
-__device__ __host__ void   RotateToLabFrame(float* dir, float* refdir);
+__device__ void   RotateToLabFrame(float&u, float&v, float&w, float u1, float u2, float u3);
+__device__  void   RotateToLabFrame(float* dir, float* refdir);
 
 // Auxiliary funtion for bremsstrahlung final state generation.
-void   PerformBrem(Track& track);
+__device__ void   PerformBrem(Track& track);
 // Auxiliary funtion for ionisation (Moller) final state generation.
-void   PerformMoller(Track& track, SimMollerTables* theMollerTable);
+__device__ void   PerformMoller(Track& track);
 // Auxiliary funtion to perform angular delfection due to MSC.
 // NOTE: that angular deflection is applied beween the pre- and post-step point
 //       while it needs to be computed at the e- energy at the pre-step point.
 //       The pre-step point kinetic energy is `ekin0` while the current kinetic
 //       energy is `track.fEkin`.
-__device__ __host__ void PerformMSCAngularDeflection(Track& track, float ekin0);
+__device__ void PerformMSCAngularDeflection(Track& track, float ekin0);
 
 
 // Auxiliary funtion for simple e+e- annihilation
-__device__ __host__ void   PerformAnnihilation(Track& track);
+__device__ void   PerformAnnihilation(Track& track);
 
 #endif // SimDPMLike_HH
