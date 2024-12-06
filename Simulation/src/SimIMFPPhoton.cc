@@ -85,9 +85,12 @@ void SimIMFPPhoton::InitializeIMFPTotalTable() {
     DataValidation();
 
 	float InvDelta = (float)fDataPerMaterial[0].GetInvDelta();
+    float auxilary;
 	cudaMemcpyToSymbol(IMFPTotal::NumMaterial, &fNumMaterial, sizeof(int));
-	cudaMemcpyToSymbol(IMFPTotal::Emin, &fEmin, sizeof(float));
-	cudaMemcpyToSymbol(IMFPTotal::Emax, &fEmax, sizeof(float));
+	auxilary = (float)fEmin;
+	cudaMemcpyToSymbol(IMFPTotal::Emin, &auxilary, sizeof(float));
+	auxilary = (float)fEmax;
+	cudaMemcpyToSymbol(IMFPTotal::Emax, &auxilary, sizeof(float));	
 	cudaMemcpyToSymbol(IMFPTotal::InvDelta, &InvDelta, sizeof(float));
 
     int dim[2] = { fDataPerMaterial[0].GetNumData(), fNumMaterial};
@@ -118,9 +121,12 @@ void SimIMFPPhoton::InitializeIMFPComptonTable() {
     DataValidation();
 
     float InvDelta = (float)fDataPerMaterial[0].GetInvDelta();
+	float auxilary;
     cudaMemcpyToSymbol(IMFPCompton::NumMaterial, &fNumMaterial, sizeof(int));
-    cudaMemcpyToSymbol(IMFPCompton::Emin, &fEmin, sizeof(float));
-    cudaMemcpyToSymbol(IMFPCompton::Emax, &fEmax, sizeof(float));
+    auxilary = (float)fEmin;
+    cudaMemcpyToSymbol(IMFPTotal::Emin, &auxilary, sizeof(float));
+    auxilary = (float)fEmax;
+    cudaMemcpyToSymbol(IMFPTotal::Emax, &auxilary, sizeof(float));
     cudaMemcpyToSymbol(IMFPCompton::InvDelta, &InvDelta, sizeof(float));
 
     int dim[2] = { fDataPerMaterial[0].GetNumData(), fNumMaterial };
@@ -151,9 +157,12 @@ void SimIMFPPhoton::InitializeIMFPPairProdTable() {
     DataValidation();
 
     float InvDelta = (float)fDataPerMaterial[0].GetInvDelta();
+	float auxilary;
     cudaMemcpyToSymbol(IMFPPairProd::NumMaterial, &fNumMaterial, sizeof(int));
-    cudaMemcpyToSymbol(IMFPPairProd::Emin, &fEmin, sizeof(float));
-    cudaMemcpyToSymbol(IMFPPairProd::Emax, &fEmax, sizeof(float));
+    auxilary = (float)fEmin;
+    cudaMemcpyToSymbol(IMFPTotal::Emin, &auxilary, sizeof(float));
+    auxilary = (float)fEmax;
+    cudaMemcpyToSymbol(IMFPTotal::Emax, &auxilary, sizeof(float));
     cudaMemcpyToSymbol(IMFPPairProd::InvDelta, &InvDelta, sizeof(float));
 
     int dim[2] = { fDataPerMaterial[0].GetNumData(), fNumMaterial };

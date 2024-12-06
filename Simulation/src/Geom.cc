@@ -188,6 +188,8 @@ void Geom::Initialize() {
     texDesc.addressMode[0] = cudaAddressModeClamp;
 
     initCudaTexture(fMaterialData->fMaterialDensity.data(), &dim, 1, &texDesc, Geometry::texDensity, Geometry::arrDensity);
+    initCudaTexture(fMaterialData->fMollerIMFPScaling.data(), &dim, 1, &texDesc, Geometry::texMollerIMFPScaling, Geometry::arrMollerIMFPScaling);
+
 
     cudaMemcpyToSymbol(Geometry::LBox, &fLBox, sizeof(float));
     cudaMemcpyToSymbol(Geometry::InvLBox, &fInvLBox, sizeof(float));

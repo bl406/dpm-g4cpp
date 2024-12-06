@@ -130,12 +130,12 @@ __global__ void Simulate_kernel(Track track)
 			//     - sample energy transfer to the photon (if any)
 		case 1: {
 			// perform bremsstrahlung interaction but only if E0 > gcut
-			if (track.fEkin > theGammaCut) {
+			if (track.fEkin > Geometry::GammaCut) {
 				PerformBrem(track, elData.GetTheSBTables());
 			}
 			// check if the post-interaction electron energy dropped
 			// below the tracking cut and stop tracking if yes
-			if (track.fEkin < theElectronCut) {
+			if (track.fEkin < Geometry::ElectronCut) {
 				// deposit the whole energy and stop tracking
 				Geometry::Score(track.fEkin, track.fBoxIndx[2]);
 				track.fEkin = 0.0;
@@ -243,7 +243,7 @@ __device__ __host__ int KeepTrackingElectron(Track& track, float& numTr1MFP, flo
     track.fMatIndx      = theVoxelMatIndx;
     // the material scaling factor for the Moller inverse-mf: [A/(Z\rho/)]_ref [(Z\rho)/A]_actual
     // or more exactly its [A/Z)]_ref [(Z)/A]_actual part
-    float scalMolMFP = matData.fMollerIMFPScaling[theVoxelMatIndx];
+    float scalMolMFP = Geometry::GetVoxelMollerIMFPScaling(theVoxelMatIndx);
     // WE ASSUME HERE NOW THAT EACH VOXEL IS A CLEAR MATERIAL SO WE WILL
     // USE theVoxelMaterialDensity = theVoxelBaseMaterialDensity. HOWEVER,
     // THIS MIGH BE CHANGED ANYTIME WHEN THE GEOMETRY CAN PROVIDE A SUITABLE
@@ -260,17 +260,17 @@ __device__ __host__ int KeepTrackingElectron(Track& track, float& numTr1MFP, flo
     // - constant dEdx along the step, i.e. dEdx=dEdx(E_0) and dE = s dEdx --> E_mid = E_0 - 0.5 s dEdx
     // - the step equal to the current one, i.e. `stepLength` (dist. to boundary)
     // the restricted stopping power for this material: for the referecne material and scalled with the current density
-    float theDEDX    = SimStoppingPower::GetDEDXPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity;
+    float theDEDX    = StoppingPower::GetDEDXPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity;
     // make sure that do not go below the minim e- energy
     float midStepE   = std::max(track.fEkin-0.5f*stepLength*theDEDX, theElectronCut );
     // elastic: #tr1-mfp' = #tr1-mfp - ds/tr1-mfp' so the change in #tr1-mfp is ds/tr1-mfp' and
     //          1/mfp' is computed here
-    float delNumTr1MFP    = SimITr1MFPElastic::GetITr1MFPPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
+    float delNumTr1MFP    = ITr1MFPElastic::GetITr1MFPPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
     // moller: see above the details
     float delNumMollerMFP = invMollerMFP*scalMolMFP*theVoxelMatDensity;
     // brem: #mfp' = #mfp - ds/mfp' with mfp = brem_mfp so the change in #mfp is ds/mfp' and
     //       1/mfp' is computed here
-    float delNumBremMFP   = SimIMFPBrem::GetIMFPPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
+    float delNumBremMFP   = IMFPBrem::GetIMFPPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
     //
     //
     // Now we will see how far actually we go by trying to decrese each of the 3 #mfp/#tr1-mfp
@@ -318,9 +318,9 @@ __device__ __host__ int KeepTrackingElectron(Track& track, float& numTr1MFP, flo
       //       is taken since that is the shortest. So we recompute the mid-step-point
       //       energy according to the step lenght of stepElastic and re-evaluate
       //       the 1./mfp i.e. 1/tr1mfp at this energy value
-      stepElastic = numTr1MFP/(SimITr1MFPElastic::GetITr1MFPPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity);
+      stepElastic = numTr1MFP/(ITr1MFPElastic::GetITr1MFPPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity);
       midStepE    = std::max( track.fEkin-0.5f*stepElastic*theDEDX, theElectronCut );
-      delNumTr1MFP = SimITr1MFPElastic::GetITr1MFPPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
+      delNumTr1MFP = ITr1MFPElastic::GetITr1MFPPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
       // don't let longer than the original in order to make sure that it is still the
       // minimum of all step lenghts
       stepElastic = std::min(stepLength, numTr1MFP/delNumTr1MFP);
@@ -341,7 +341,7 @@ __device__ __host__ int KeepTrackingElectron(Track& track, float& numTr1MFP, flo
     //   pre-step point dEdx (assumed to be constant along the step).
     midStepE     = std::max( track.fEkin-0.5f*stepLength*theDEDX, theElectronCut );
     // - then the dEdx at this energy
-    theDEDX      = SimStoppingPower::GetDEDXPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
+    theDEDX      = StoppingPower::GetDEDXPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
     // - then the energy loss along the step using the mid-step dEdx (as constant)
     //   and the final energy
     float deltE = stepLength*theDEDX;
@@ -612,12 +612,12 @@ __device__ __host__ void RotateToLabFrame(float* dir, float* refdir) {
 
 // It is assumed that track.fEkin > gamma-cut!
 // (Interaction is not possible otherwise)
-__device__ __host__ void PerformBrem(Track& track, SimSBTables* theSBTable) {
+__device__ __host__ void PerformBrem(Track& track) {
   const float kPI            = 3.1415926535897932f;
   const float kEMC2          = 0.510991f;
   const float kHalfSqrt2EMC2 = kEMC2 * 0.7071067812f;
   // sample energy transferred to the emitted gamma photon
-  const float eGamma = theSBTable->SampleEnergyTransfer(track.fEkin,
+  const float eGamma = SBTables::SampleEnergyTransfer(track.fEkin,
                                                          track.fMatIndx,
                                                          CuRand::rand(),
                                                          CuRand::rand(),

@@ -59,9 +59,9 @@
 #include <cuda_runtime_api.h>
 
 namespace Geometry {
-    extern cudaTextureObject_t texDensity;
-    extern cudaArray_t arrDensity;
-    extern __device__ cudaTextureObject_t d_texDensity;
+    extern cudaTextureObject_t texDensity, texMollerIMFPScaling;
+	extern cudaArray_t arrDensity, arrMollerIMFPScaling;
+	extern __device__ cudaTextureObject_t d_texDensity, d_texMollerIMFPScaling;
     extern __constant__ float LBox;
     extern __constant__ float InvLBox;
     extern __constant__ float LHalfBox;
@@ -106,6 +106,10 @@ namespace Geometry {
     inline __device__ float GetVoxelMaterialDensity(int imat);/* {
         return imat > -1 ? tex1D<float>(d_texDensity, imat) : 1.0E-40f;
     }*/
+
+	inline __device__ float GetVoxelMollerIMFPScaling(int imat) {
+		return imat > -1 ? tex1D<float>(d_texMollerIMFPScaling, imat) : 1.0E-40f;
+	}
 
 	__device__ void Score(float edep, int iz);
 }

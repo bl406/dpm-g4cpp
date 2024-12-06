@@ -79,7 +79,7 @@ __device__ __host__ void   RotateToLabFrame(float&u, float&v, float&w, float u1,
 __device__ __host__ void   RotateToLabFrame(float* dir, float* refdir);
 
 // Auxiliary funtion for bremsstrahlung final state generation.
-void   PerformBrem(Track& track, SimSBTables* theSBTable);
+void   PerformBrem(Track& track);
 // Auxiliary funtion for ionisation (Moller) final state generation.
 void   PerformMoller(Track& track, SimMollerTables* theMollerTable);
 // Auxiliary funtion to perform angular delfection due to MSC.

@@ -2,26 +2,36 @@
 
 #include <cstdio>
 #include <iostream>
-
-float SimITr1MFPElastic::eStep;
-float SimITr1MFPElastic::eMin;
-float SimITr1MFPElastic::eMax;
-int SimITr1MFPElastic::ne;
-int SimITr1MFPElastic::nmat;
-std::vector<float> SimITr1MFPElastic::ITr1MFPTable;
+#include "Utils.h"
 
 void SimITr1MFPElastic::initializeITr1MFPTable(){
-    SimITr1MFPElastic::ne = 500;
-    SimITr1MFPElastic::nmat = fNumMaterial;
-    SimITr1MFPElastic::eMin = fEmin;
-    SimITr1MFPElastic::eMax = fEmax;
-	SimITr1MFPElastic::eStep = (fEmax - fEmin) / (ne - 1);
-	SimITr1MFPElastic::ITr1MFPTable.resize(ne * nmat);
-	for (int i = 0; i < nmat; i++) {
-		for (int j = 0; j < ne; j++) {
-			ITr1MFPTable[i * ne + j] = GetITr1MFPPerDensity(double(eMin + j * eStep), i);
-		}
-	}
+    int ne = 500;
+    float Estep = (float)(fEmax - fEmin) / ne;
+	float auxilary;
+	auxilary = fEmax;
+    cudaMemcpyToSymbol(ITr1MFPElastic::Emax, &auxilary, sizeof(float));
+	auxilary = fEmin;
+    cudaMemcpyToSymbol(ITr1MFPElastic::Emin, &auxilary, sizeof(float));
+    cudaMemcpyToSymbol(ITr1MFPElastic::ne, &ne, sizeof(int));
+    cudaMemcpyToSymbol(ITr1MFPElastic::nmat, &fNumMaterial, sizeof(int));
+	auxilary = Estep;
+    cudaMemcpyToSymbol(ITr1MFPElastic::Estep, &auxilary, sizeof(float));
+
+    std::vector<float> ITr1MFPPerDensityTable;
+    ITr1MFPPerDensityTable.resize(ne * fNumMaterial);
+    for (int i = 0; i < fNumMaterial; i++) {
+        for (int j = 0; j < ne; j++) {
+            ITr1MFPPerDensityTable[i * ne + j] = GetITr1MFPPerDensity(double(fEmin + j * Estep), i);
+        }
+    }
+
+    cudaTextureDesc texDesc;
+    memset(&texDesc, 0, sizeof(texDesc));
+    texDesc.normalizedCoords = 0;
+    texDesc.filterMode = cudaFilterModeLinear;
+    texDesc.addressMode[0] = cudaAddressModeClamp;
+    texDesc.addressMode[1] = cudaAddressModeClamp;
+	initCudaTexture(ITr1MFPPerDensityTable.data(), &ne, 1, &texDesc, ITr1MFPElastic::tex, ITr1MFPElastic::array);
 }
 
 SimITr1MFPElastic::SimITr1MFPElastic() {
