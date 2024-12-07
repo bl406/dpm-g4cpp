@@ -7,8 +7,20 @@
 #include "utils.h"
 
 namespace Geometry {
-    cudaTextureObject_t texDensity;
-    cudaArray_t arrDensity;    
+    cudaTextureObject_t texDensity, texMollerIMFPScaling;
+    cudaArray_t arrDensity, arrMollerIMFPScaling;
+    __device__ cudaTextureObject_t d_texDensity, d_texMollerIMFPScaling;
+    
+    __constant__ float LBox;
+    __constant__ float InvLBox;
+    __constant__ float LHalfBox;
+    __constant__ float Tolerance;
+    __constant__ float Extent;
+    __constant__ int PreDefinedGeomIndex;
+
+    __constant__ float ElectronCut;
+    __constant__ float GammaCut;
+
     float* EdepHist;
     __device__ float* d_EdepHist;
     float* StepHist;
@@ -159,15 +171,6 @@ namespace Geometry {
         }
     }
 
-    __device__ float GetVoxelMaterialDensity(int imat) {
-        return imat > -1 ? tex1D<float>(d_texDensity, imat) : 1.0E-40f;
-    }
-
-    __device__ float GetVoxelMaterialDensity(int* iVoxel) {
-        const int imat = GetMaterialIndex(iVoxel);
-        return imat > -1 ? tex1D<float>(d_texDensity, imat) : 1.0E-40f;
-    }
-
     __device__ void Score(float edep, int iz) {
         if (iz >= 0) {
             const std::size_t indx = (std::size_t)(iz);
@@ -187,9 +190,19 @@ void Geom::Initialize() {
     texDesc.filterMode = cudaFilterModePoint;
     texDesc.addressMode[0] = cudaAddressModeClamp;
 
-    initCudaTexture(fMaterialData->fMaterialDensity.data(), &dim, 1, &texDesc, Geometry::texDensity, Geometry::arrDensity);
-    initCudaTexture(fMaterialData->fMollerIMFPScaling.data(), &dim, 1, &texDesc, Geometry::texMollerIMFPScaling, Geometry::arrMollerIMFPScaling);
+    initCudaTexture(fMaterialData->fMaterialDensity.data(), &dim, 1, &texDesc, 
+        Geometry::texDensity, Geometry::arrDensity);
+    initCudaTexture(fMaterialData->fMollerIMFPScaling.data(), &dim, 1, &texDesc,
+        Geometry::texMollerIMFPScaling, Geometry::arrMollerIMFPScaling);
 
+    cudaMemcpyToSymbol(Geometry::d_texDensity, &Geometry::texDensity, sizeof(cudaTextureObject_t));
+    cudaMemcpyToSymbol(Geometry::d_texMollerIMFPScaling, &Geometry::texMollerIMFPScaling, sizeof(cudaTextureObject_t));
+
+    float Tolerance = 1.0E-4f;
+    float Extent = 100.f;
+
+    cudaMemcpyToSymbol(Geometry::Tolerance, &Tolerance, sizeof(float));
+    cudaMemcpyToSymbol(Geometry::Extent, &Extent, sizeof(float));
 
     cudaMemcpyToSymbol(Geometry::LBox, &fLBox, sizeof(float));
     cudaMemcpyToSymbol(Geometry::InvLBox, &fInvLBox, sizeof(float));
@@ -206,6 +219,8 @@ void Geom::Initialize() {
     cudaMalloc(&Geometry::StepHist, fStepHist.size() * sizeof(float));
     cudaMemset(Geometry::StepHist, 0, fStepHist.size() * sizeof(float));
     cudaMemcpyToSymbol(Geometry::d_StepHist, &Geometry::StepHist, sizeof(float*));
+
+	CudaCheckError();
 }
 
 Geom::Geom(float lbox, SimMaterialData* matData, int geomIndex)

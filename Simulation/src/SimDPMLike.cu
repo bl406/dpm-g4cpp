@@ -1,43 +1,37 @@
 #include "SimDPMLike.hh"
 
+#include <cstdio>
 
 #include "Geom.hh"
-
-
 #include "SimMaterialData.hh"
-
-
 #include "SimElectronData.hh"
-
 #include "SimITr1MFPElastic.hh"
 #include "SimMaxScatStrength.hh"
-
 #include "SimIMFPMoller.hh"
 #include "SimIMFPBrem.hh"
 #include "SimStoppingPower.hh"
-
 #include "SimMollerTables.hh"
 #include "SimSBTables.hh"
 #include "SimGSTables.hh"
-
-
-
 #include "SimPhotonData.hh"
-
 #include "SimIMFPMaxPhoton.hh"
 #include "SimIMFPPhoton.hh"
-
 #include "SimKNTables.hh"
-
-
 #include "Random.hh"
 #include "Track.hh"
 #include "TrackStack.hh"
+#include "Source.hh"
+#include "config.hh"
+#include "error_checking.h"
+#include "Utils.h"
 
-#include <cstdio>
-
-__global__ void Simulate_kernel(Track track)
+__global__ void Simulate_kernel()
 {
+	int tid = threadIdx.x + blockIdx.x * blockDim.x;
+	if (tid >= d_TrackSeq.fSize) return;
+
+	Track& track = d_TrackSeq.fData[tid];
+
 	// compute the distance to the boundary
 	// (This also sets the box indices so the material index can be obtained)
 	// init the step length to this distance to boundary
@@ -96,7 +90,7 @@ __global__ void Simulate_kernel(Track track)
 	//       that in case of Moller (in DPM) even E'=E_0 in each step as dicussed above).
 	float numMollerMFP = -std::log(CuRand::rand());
 	// again, the reference material Moller IMFP value is used
-	float invMollerMFP = SimIMFPMoller::GetIMFPPerDensity(track.fEkin);
+	float invMollerMFP = IMFPMoller::GetIMFPPerDensity(track.fEkin);
 	//
 	// 3. bremsstrahlung:
 	// NOTE: IMFP for bremsstrahlung is important so it's interpolated by using values for
@@ -131,7 +125,7 @@ __global__ void Simulate_kernel(Track track)
 		case 1: {
 			// perform bremsstrahlung interaction but only if E0 > gcut
 			if (track.fEkin > Geometry::GammaCut) {
-				PerformBrem(track, elData.GetTheSBTables());
+				PerformBrem(track);
 			}
 			// check if the post-interaction electron energy dropped
 			// below the tracking cut and stop tracking if yes
@@ -163,12 +157,12 @@ __global__ void Simulate_kernel(Track track)
 		case 2: {
 			// perform ionisation (Moller) intraction but only if E0 > 2cut
 			if (track.fEkin > 2. * Geometry::ElectronCut) {
-				PerformMoller(track, elData.GetTheMollerTables());
+				PerformMoller(track);
 			}
 			// Resample #mfp left and interpolate the IMFP since the enrgy has been changed.
 			// Again, the reference material Moller IMFP value is used
 			numMollerMFP = -std::log(CuRand::rand());
-			invMollerMFP = SimIMFPMoller::GetIMFPPerDensity(track.fEkin);
+			invMollerMFP = IMFPMoller::GetIMFPPerDensity(track.fEkin);
 			break;
 		}
 			  // (3) msc interaction happend: either hinge or just or end of an MSC step
@@ -187,7 +181,7 @@ __global__ void Simulate_kernel(Track track)
 				// end point so resample #tr1-mfp left and the hinge point
 				theEkin0 = track.fEkin;
 				// again, the reference material K_1(E) is used
-				numTr1MFP = SimMaxScatStrength::GetMaxScatStrength(theEkin0);
+				numTr1MFP = MaxScatStrength::GetMaxScatStrength(theEkin0);
 				// travell this #tr1-mfp after the MSC-hinge took place
 				numTr1MFP0 = CuRand::rand() * numTr1MFP;
 				// travell this #tr1-mfp till the MSC-hinge
@@ -205,7 +199,89 @@ __global__ void Simulate_kernel(Track track)
 	} // end of tracking while loop
 }
 
-__device__ __host__ int KeepTrackingElectron(Track& track, float& numTr1MFP, float& numMollerMFP, float invMollerMFP, float& numBremMFP) {
+void Simulate(int nprimary, const Source* source)
+{
+    int nbatch = 10;
+    if (nprimary / nbatch == 0) {
+        nprimary = nbatch;
+    }
+    // nhist对nperbatch向上取整
+    int nperbatch = nprimary / nbatch;
+    if (nprimary % nperbatch != 0) {
+        nbatch++;
+    }
+    nprimary = nperbatch * nbatch;
+
+    //int seq_size = 65536;
+    int seq_size = 5120;
+	int stack_size = seq_size * 16;
+    int nblocks = divUp(seq_size, THREADS_PER_BLOCK);
+
+    CuRand::initCurand(nblocks, THREADS_PER_BLOCK);
+
+    h_PhotonStack.init(stack_size);
+	h_ElectronStack.init(stack_size);
+	h_TrackSeq.init(seq_size);
+    CudaCheckError();
+
+    for (int ibatch = 0; ibatch < nbatch; ++ibatch){
+        int nSimulatedPri = 0;
+
+        while (1) {
+            if (nSimulatedPri >= nperbatch) {
+                if (!h_PhotonStack.empty() || !h_ElectronStack.empty()) {
+                    if (h_PhotonStack.size() >= seq_size) {
+                        h_TrackSeq.add_secondary(&h_PhotonStack);
+                    }
+                    else if (h_ElectronStack.size() >= seq_size) {
+                        h_TrackSeq.add_secondary(&h_ElectronStack);
+                    }
+                    else {
+                        if (h_PhotonStack.size() + h_ElectronStack.size() < h_TrackSeq.fCapacity) {
+                            h_TrackSeq.add_secondary(&h_PhotonStack);
+                            h_TrackSeq.add_secondary(&h_ElectronStack);
+                        }
+                        else if (h_PhotonStack.size() > 0) {
+                            h_TrackSeq.add_secondary(&h_PhotonStack);
+                        }
+                        else if (h_ElectronStack.size() > 0) {
+                            h_TrackSeq.add_secondary(&h_ElectronStack);
+                        }
+                    }
+                }
+                else {
+                    break;
+                }
+            }
+            else {
+                if (h_PhotonStack.size() >= seq_size) {
+                    h_TrackSeq.add_secondary(&h_PhotonStack);
+                }
+                else if (h_ElectronStack.size() >= seq_size) {
+                    h_TrackSeq.add_secondary(&h_ElectronStack);
+                }
+                else {
+                    h_TrackSeq.add_n_primary(seq_size, source);
+                    nSimulatedPri += h_TrackSeq.fSize;
+                }
+            }
+            CudaCheckError();
+            cudaMemcpyToSymbol(d_TrackSeq, &h_TrackSeq, sizeof(TrackSeq));
+            cudaMemcpyToSymbol(d_PhotonStack, &h_PhotonStack, sizeof(TrackStack));
+            cudaMemcpyToSymbol(d_ElectronStack, &h_ElectronStack, sizeof(TrackStack));
+            CudaCheckError();
+            Simulate_kernel << <nblocks, THREADS_PER_BLOCK >> > ();
+            CudaCheckError();            
+            h_TrackSeq.fSize = 0;
+            cudaMemcpyFromSymbol(&h_PhotonStack, d_PhotonStack, sizeof(TrackStack));
+            cudaMemcpyFromSymbol(&h_ElectronStack, d_ElectronStack, sizeof(TrackStack));
+            CudaCheckError();
+        }
+        std::cout << "\n === End simulation of N = " << (ibatch+1) * nperbatch << " events === \n" << std::endl;
+    }
+}
+
+__device__  int KeepTrackingElectron(Track& track, float& numTr1MFP, float& numMollerMFP, float invMollerMFP, float& numBremMFP) {
   int whatHappend = 0;
   // compute the distance to boundary: this will be the current value of the maximal step length
   float stepGeom = Geometry::DistanceToBoundary(track.fPosition, track.fDirection, track.fBoxIndx);
@@ -262,7 +338,7 @@ __device__ __host__ int KeepTrackingElectron(Track& track, float& numTr1MFP, flo
     // the restricted stopping power for this material: for the referecne material and scalled with the current density
     float theDEDX    = StoppingPower::GetDEDXPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity;
     // make sure that do not go below the minim e- energy
-    float midStepE   = std::max(track.fEkin-0.5f*stepLength*theDEDX, theElectronCut );
+    float midStepE   = fmax(track.fEkin-0.5f*stepLength*theDEDX, theElectronCut );
     // elastic: #tr1-mfp' = #tr1-mfp - ds/tr1-mfp' so the change in #tr1-mfp is ds/tr1-mfp' and
     //          1/mfp' is computed here
     float delNumTr1MFP    = ITr1MFPElastic::GetITr1MFPPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
@@ -319,11 +395,11 @@ __device__ __host__ int KeepTrackingElectron(Track& track, float& numTr1MFP, flo
       //       energy according to the step lenght of stepElastic and re-evaluate
       //       the 1./mfp i.e. 1/tr1mfp at this energy value
       stepElastic = numTr1MFP/(ITr1MFPElastic::GetITr1MFPPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity);
-      midStepE    = std::max( track.fEkin-0.5f*stepElastic*theDEDX, theElectronCut );
+      midStepE    = fmax( track.fEkin-0.5f*stepElastic*theDEDX, theElectronCut );
       delNumTr1MFP = ITr1MFPElastic::GetITr1MFPPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
       // don't let longer than the original in order to make sure that it is still the
       // minimum of all step lenghts
-      stepElastic = std::min(stepLength, numTr1MFP/delNumTr1MFP);
+      stepElastic = fmin(stepLength, numTr1MFP/delNumTr1MFP);
       stepLength  = stepElastic;
       whatHappend = 3;
     }
@@ -339,7 +415,7 @@ __device__ __host__ int KeepTrackingElectron(Track& track, float& numTr1MFP, flo
     // Compte the (sub-treshold, i.e. along step) energy loss:
     // - first the mid-step energy using the final value of the step lenght and the
     //   pre-step point dEdx (assumed to be constant along the step).
-    midStepE     = std::max( track.fEkin-0.5f*stepLength*theDEDX, theElectronCut );
+    midStepE     = fmax( track.fEkin-0.5f*stepLength*theDEDX, theElectronCut );
     // - then the dEdx at this energy
     theDEDX      = StoppingPower::GetDEDXPerDensity(midStepE, theVoxelMatIndx)*theVoxelMatDensity;
     // - then the energy loss along the step using the mid-step dEdx (as constant)
@@ -483,7 +559,7 @@ __device__ void KeepTrackingPhoton(Track& track) {
         const float e0 = track.fEkin*kInvEMC2;
         float elCost   = (1.0f+e0)*std::sqrt((1.0f-theEps)/(e0*(2.0f+e0*(1.0f-theEps))));
         //
-        Track& aTrack        = TrackStack::Instance().Insert();
+        Track& aTrack = d_ElectronStack.push_one();
         aTrack.fType         = -1;
         aTrack.fEkin         = elEner;
         aTrack.fMatIndx      = track.fMatIndx;
@@ -541,7 +617,7 @@ __device__ void KeepTrackingPhoton(Track& track) {
         Geometry::Score(e2, track.fBoxIndx[2]);
         //Geometry::Score(e2, track.fPosition[2]);
       } else {
-        Track& aTrack        = TrackStack::Instance().Insert();
+        Track& aTrack        = d_ElectronStack.push_one();
         aTrack.fType         = -1;
         aTrack.fEkin         = e2;
         aTrack.fMatIndx      = track.fMatIndx;
@@ -561,7 +637,7 @@ __device__ void KeepTrackingPhoton(Track& track) {
         //Geometry::Score(e1, track.fPosition[2]);
         PerformAnnihilation(track);
       } else {
-        Track& aTrack        = TrackStack::Instance().Insert();
+        Track& aTrack        = d_ElectronStack.push_one();
         aTrack.fType         = +1;
         aTrack.fEkin         = e1;
         aTrack.fMatIndx      = track.fMatIndx;
@@ -623,7 +699,7 @@ __device__ void PerformBrem(Track& track) {
                                                          CuRand::rand(),
                                                         CuRand::rand());
  // insert the secondary gamma track into the stack
- Track& aTrack        = TrackStack::Instance().Insert();
+ Track& aTrack        = d_PhotonStack.push_one();
  aTrack.fType         = 0;
  aTrack.fEkin         = eGamma;
  aTrack.fMatIndx      = track.fMatIndx;
@@ -637,7 +713,7 @@ __device__ void PerformBrem(Track& track) {
  // compute emission direction (rough approximation in DPM by the mean)
  // and no deflection of the primary e-
  const float dum0    = kHalfSqrt2EMC2/(track.fEkin+kEMC2);
- const float cost    = std::max(-1.0f, std::min(1.0f, 1.0f-dum0*dum0));
+ const float cost    = fmax(-1.0f, fmin(1.0f, 1.0f-dum0*dum0));
  const float sint    = std::sqrt((1.0f+cost)*(1.0f-cost));
  const float phi     = 2.0f*kPI*CuRand::rand();
  aTrack.fDirection[0] = sint*std::cos(phi);
@@ -650,18 +726,18 @@ __device__ void PerformBrem(Track& track) {
 
 // It is assumed that track.fEkin > 2*electron-cut!
 // (Interaction is not possible otherwise)
-__device__ __host__ void PerformMoller(Track& track, SimMollerTables* theMollerTable) {
+__device__ void PerformMoller(Track& track) {
   const float kPI     = 3.1415926535897932f;
   const float kEMC2   = 0.510991f;
   const float k2EMC2  = 2.0f*kEMC2;
-  const float secEkin = theMollerTable->SampleEnergyTransfer( track.fEkin,
+  const float secEkin = MollerTables::SampleEnergyTransfer( track.fEkin,
                                                                CuRand::rand(),
                                                                CuRand::rand(),
                                                                CuRand::rand());
   const float cost    = std::sqrt(secEkin*(track.fEkin+k2EMC2)/(track.fEkin*(secEkin+k2EMC2)));
-  const float secCost = std::min(1.0f, cost);
+  const float secCost = fmin(1.0f, cost);
   // insert the secondary e- track into the stack
-  Track& aTrack        = TrackStack::Instance().Insert();
+  Track& aTrack = d_ElectronStack.push_one();
   aTrack.fType         = -1;
   aTrack.fEkin         = secEkin;
   aTrack.fMatIndx      = track.fMatIndx;
@@ -682,12 +758,12 @@ __device__ __host__ void PerformMoller(Track& track, SimMollerTables* theMollerT
 }
 
 
-__device__ __host__ void PerformMSCAngularDeflection(Track& track, float ekin0) {
+__device__ void PerformMSCAngularDeflection(Track& track, float ekin0) {
   const float kPI  = 3.1415926535897932f;
-  const float dum0 = SimGSTables::SampleAngularDeflection( ekin0,
+  const float dum0 = GSTables::SampleAngularDeflection( ekin0,
                                                             CuRand::rand(),
                                                             CuRand::rand());
-  const float cost = std::max(-1.0f, std::min(1.0f, dum0));
+  const float cost = fmax(-1.0f, fmin(1.0f, dum0));
   const float sint = std::sqrt((1.0-cost)*(1.0f+cost));
   // smaple \phi: uniform in [0,2Pi] <== spherical symmetry of the scattering potential
   const float phi  = 2.0f*kPI*CuRand::rand();
@@ -704,18 +780,18 @@ __device__ __host__ void PerformMSCAngularDeflection(Track& track, float ekin0) 
 }
 
 
-__device__ __host__ void PerformAnnihilation(Track& track) {
+__device__ void PerformAnnihilation(Track& track) {
   const float kPI      = 3.1415926535897932f;
   const float kEMC2    = 0.510991f;
   // isotropic direction
   const float cost = 1.0f-2.0f*CuRand::rand();
-  const float sint = std::sqrt((1.0-cost)*(1.0+cost));
+  const float sint = std::sqrt((1.0f-cost)*(1.0f+cost));
   const float phi  = 2.0f*kPI*CuRand::rand();
   const float rx   = sint*cos(phi);
   const float ry   = sint*sin(phi);
   const float rz   = cost;
 
-  Track& aTrack        = TrackStack::Instance().Insert();
+  Track& aTrack = d_PhotonStack.push_one();
   aTrack.fType         = 0;
   aTrack.fEkin         = kEMC2;
   aTrack.fMatIndx      = track.fMatIndx;
@@ -729,7 +805,7 @@ __device__ __host__ void PerformAnnihilation(Track& track) {
   aTrack.fDirection[1] = ry;
   aTrack.fDirection[2] = rz;
 
-  Track& aTrack1        = TrackStack::Instance().Insert();
+  Track& aTrack1        = d_PhotonStack.push_one();
   aTrack1.fType         = 0;
   aTrack1.fEkin         = kEMC2;
   aTrack1.fMatIndx      = track.fMatIndx;

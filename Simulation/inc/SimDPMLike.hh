@@ -3,6 +3,8 @@
 
 #include <string>
 
+class Source;
+
 //
 // M. Novak: 2021
 //
@@ -43,8 +45,7 @@ class Track;
 // The resulted depth dose histogram of the simulation is written into the `hist.sim`
 // file at the termination of the simulation.
 //
-void  Simulate(int nprimary, float eprimary, bool iselectron, float lbox, 
-	SimMaterialData& matData, SimElectronData& elData, SimPhotonData& phData, int geomIndex, std::string filename);
+void  Simulate(int nprimary, const Source* source);
 
 
 

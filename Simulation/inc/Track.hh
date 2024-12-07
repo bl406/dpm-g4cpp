@@ -19,11 +19,13 @@ public:
   float fStepLenght;    // current step length
   float fEdep;          // energy deposit in the given step
   //
+  __host__ __device__
   Track() {
     Reset();
   }
 
   // copy ctr
+  __host__ __device__
   Track(const Track& o) {
     fPosition[0]  = o.fPosition[0];
     fPosition[1]  = o.fPosition[1];
@@ -46,6 +48,7 @@ public:
   }
 
   //
+  __host__ __device__
   void Reset() {
     fPosition[0]  = 0.0;
     fPosition[1]  = 0.0;
@@ -66,7 +69,7 @@ public:
     fStepLenght   = 0.0;
     fEdep         = 0.0;
   }
-
+  __host__ __device__
   void Copy(Track& in){
     in.fPosition[0]  = fPosition[0];
     in.fPosition[1]  = fPosition[1];

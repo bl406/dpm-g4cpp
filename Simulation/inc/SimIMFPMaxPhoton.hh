@@ -32,10 +32,8 @@ namespace IMFPMaxPhoton {
 	extern cudaTextureObject_t tex;
     extern __device__ cudaTextureObject_t d_tex;
 
-    inline __device__ float GetValue(float xval) {
-        float ilow = (xval - IMFPMaxPhoton::Emin) * IMFPMaxPhoton::InvDelta;
-		return tex1D<float>(d_tex, ilow + 0.5f);
-    }
+    __device__ float GetValue(float xval);
+
     inline __device__ float GetIMFP(float ekin) {
 		// make sure that E_min <= ekin < E_max
 		const float e = fmin(IMFPMaxPhoton::Emax - 1.0E-6f, fmax(IMFPMaxPhoton::Emin, ekin));

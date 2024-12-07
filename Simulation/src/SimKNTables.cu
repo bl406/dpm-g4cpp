@@ -8,6 +8,27 @@
 #include "Utils.h"
 
 namespace KNTables {
+    __constant__ int SamplingTableSize;
+    __constant__ int NumPrimaryEnergies;
+    __constant__ float MinPrimaryEnergy;
+    __constant__ float LogMinPrimaryEnergy;
+    __constant__ float InvLogDeltaPrimaryEnergy;
+
+    cudaArray_t arrXdata;
+    cudaArray_t arrYdata;
+    cudaArray_t arrAliasW;
+    cudaArray_t arrAliasIndx;
+
+    cudaTextureObject_t texXdata;
+    cudaTextureObject_t texYdata;
+    cudaTextureObject_t texAliasW;
+    cudaTextureObject_t texAliasIndx;
+
+    __device__ cudaTextureObject_t d_texXdata;
+    __device__ cudaTextureObject_t d_texYdata;
+    __device__ cudaTextureObject_t d_texAliasW;
+    __device__ cudaTextureObject_t d_texAliasIndx;
+
 
     // method provided to produce samples according to the represented distribution
     // `rndm1` and `rndm2` are uniformly random values on [0,1]

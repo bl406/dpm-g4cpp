@@ -4,13 +4,14 @@
 #include "SimPhotonData.hh"
 
 #include "SimDPMLike.hh"
+#include "Source.hh"
 
 #include "Configuration.hh"
-
+#include "Geom.hh"
+#include "error_checking.h"
 #include <iostream>
 #include <iomanip>
 #include <string>
-
 #include <getopt.h>
 
 //
@@ -70,17 +71,30 @@ int main(int argc, char *argv[]) {
   // - electron related data
   SimElectronData theSimElectronData;
   theSimElectronData.Load(gInputDataDir);
+  CudaCheckError();
+  
   // - photon related data
   SimPhotonData theSimPhotonData;
   theSimPhotonData.Load(gInputDataDir);
   // - configuration and material related data
   SimMaterialData theSimMaterialData;
   theSimMaterialData.Load(gInputDataDir);
-  //
-  // Execute the simulation according to the iput arguments
+  CudaCheckError();
+
   bool isElectron = (gPrimaryParticle=="e-");
-  Simulate(gNumPrimaries, gPrimaryEnergy, isElectron, gVoxelSize, theSimMaterialData, theSimElectronData, theSimPhotonData, theConfig.fGeomIndex, gOutputFileName);
-  //
+  SimpleSource theSource(gPrimaryEnergy, isElectron, gVoxelSize);
+
+  // create the simple geometry
+  Geom geom(gVoxelSize, &theSimMaterialData, theConfig.fGeomIndex);
+  geom.Initialize();
+
+  Simulate(gNumPrimaries, &theSource);
+  
+  cudaMemcpy(geom.fEdepHist.data(), Geometry::EdepHist, geom.fEdepHist.size() * sizeof(float), cudaMemcpyDeviceToHost);
+  cudaMemcpy(geom.fStepHist.data(), Geometry::StepHist, geom.fStepHist.size() * sizeof(float), cudaMemcpyDeviceToHost);
+
+  geom.Write(gOutputFileName, gNumPrimaries);
+
   return 0;
 }
 

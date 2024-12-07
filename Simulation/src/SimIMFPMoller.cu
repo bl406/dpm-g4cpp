@@ -5,6 +5,11 @@
 #include "Utils.h"
 
 namespace IMFPMoller {
+	__constant__ float Estep;
+	__constant__ float Emin;
+	__constant__ float Emax;
+	__constant__ int ne;
+
 	cudaArray_t array;
 	cudaTextureObject_t tex;
 	__device__ cudaTextureObject_t d_tex;

@@ -6,9 +6,14 @@
 
 namespace MaxScatStrength
 {
-    extern cudaTextureObject_t tex;
-    extern cudaArray_t array;
-    extern __device__ cudaTextureObject_t d_tex;
+    __constant__ float Estep;
+    __constant__ float Emax;
+    __constant__ float Emin;
+    __constant__ int ne;
+
+    cudaTextureObject_t tex;
+    cudaArray_t array;
+    __device__ cudaTextureObject_t d_tex;
 };
 
 void SimMaxScatStrength::initializeMaxScatStrengthTable()
@@ -17,11 +22,11 @@ void SimMaxScatStrength::initializeMaxScatStrengthTable()
 	float eStep = (float)(fEmax - fEmin) / (ne - 1);
     float aux;
 	cudaMemcpyToSymbol(MaxScatStrength::ne, &ne, sizeof(int));
-	aux = eStep;
+	aux = (float)eStep;
     cudaMemcpyToSymbol(MaxScatStrength::Estep, &aux, sizeof(float));
-	aux = fEmin;
+	aux = (float)fEmin;
     cudaMemcpyToSymbol(MaxScatStrength::Emin, &aux, sizeof(float));
-	aux = fEmax;
+	aux = (float)fEmax;
     cudaMemcpyToSymbol(MaxScatStrength::Emax, &aux, sizeof(float));
 
 	std::vector<float> data;

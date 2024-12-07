@@ -24,22 +24,7 @@
 #include "SimDataSpline.hh"
 
 namespace IMFPBrem {
-	extern __constant__ float Estep;
-	extern __constant__ float Emin;
-	extern __constant__ float Emax;
-	extern __constant__ int ne;
-	extern __constant__ int nmat;
-	extern cudaArray_t array;
-	extern cudaTextureObject_t tex;
-	extern __device__ cudaTextureObject_t d_tex;
-	__device__ inline float GetIMFPPerDensity(float ekin, int imat) {
-		// check vacuum case i.e. imat = -1
-		if (imat < 0) return 1.0E-20f;
-		// make sure that E_min <= ekin < E_max
-		const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
-		float index = (e - Emin) / Estep;
-		return tex2D<float>(d_tex, index + 0.5f, imat + 0.5f);
-	}
+	__device__ float GetIMFPPerDensity(float ekin, int imat);
 };
 
 class SimIMFPBrem {
