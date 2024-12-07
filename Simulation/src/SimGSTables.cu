@@ -3,26 +3,69 @@
 #include <iostream>
 #include <cstdio>
 #include <cmath>
+#include "Utils.h"
 
-int SimGSTables::SamplingTableSize;
-float SimGSTables::MinPrimaryEnergy;
-float SimGSTables::LogMinPrimaryEnergy;
-float SimGSTables::InvLogDeltaPrimaryEnergy;
-float SimGSTables::DeltaCum;
+namespace GSTables {
+    __device__ float SampleAngularDeflection(float eprim, float rndm1, float rndm2) {
+        // determine electron energy lower grid point and sample if that or one above is used now
+        float lpenergy = std::log(eprim);
+        float phigher = (lpenergy - LogMinPrimaryEnergy) * InvLogDeltaPrimaryEnergy;
+        int penergyindx = (int)phigher;
+        // keep the lower index of the energy bin
+        const int ielow = penergyindx;
+        phigher -= penergyindx;
+        if (rndm1 < phigher) {
+            ++penergyindx;
+        }
+        // should always be fine if electron-cut < eprim < E_max but make sure
+      //  penergyindx      = std::min(fNumPrimaryEnergies-1, penergyindx);
+        // sample the transformed variable \xi
 
-std::vector<float> SimGSTables::VarUTable;
-std::vector<float> SimGSTables::ParaATable;
-std::vector<float> SimGSTables::ParaBTable;
-std::vector<float> SimGSTables::TransformParamTable;
-std::vector<float> SimGSTables::PrimaryEnergyGridTable;
+        // lower index of the (common) discrete cumulative bin and the residual fraction
+        const int    indxl = (int)(rndm2 / DeltaCum);
+        const float resid = rndm2 - indxl * DeltaCum;
+        // compute value `u` by using ratin based numerical inversion
+        const float  parA = tex2D<float>(d_texParaA, indxl+0.5f, penergyindx + 0.5f);
+        const float  parB = tex2D<float>(d_texParaB, indxl + 0.5f, penergyindx + 0.5f);
+        const float    u0 = tex2D<float>(d_texVarU, indxl + 0.5f, penergyindx + 0.5f);
+        const float    u1 = tex2D<float>(d_texVarU, indxl+1 + 0.5f, penergyindx + 0.5f);
+        const float  dum1 = (1.0f + parA + parB) * DeltaCum * resid;
+        const float  dum2 = DeltaCum * DeltaCum + parA * DeltaCum * resid + parB * resid * resid;
+        const float  theU = u0 + dum1 / dum2 * (u1 - u0);
+
+        // transform back the sampled `u` to `mu(u)` using the transformation parameter `a`
+        // mu(u) = 1 - 2au/[1-u+a] as given by Eq.(34)
+        // interpolate (linearly) the transformation parameter to E
+        const float a0 = tex1D<float>(d_texTransformParam, ielow + 0.5f);
+        const float a1 = tex1D<float>(d_texTransformParam, ielow+1 + 0.5f);
+        const float e0 = tex1D<float>(d_texPrimaryEnergyGrid, ielow + 0.5f);
+        const float e1 = tex1D<float>(d_texPrimaryEnergyGrid, ielow+1 + 0.5f);
+
+        const float parTransf = (a1 - a0) / (e1 - e0) * (eprim - e0) + a0;
+        return 1.f - 2.f * parTransf * theU / (1.f - theU + parTransf);
+    }
+}
+
 
 void SimGSTables::InitializeTables()
 {
-	SamplingTableSize = fSamplingTableSize;
-	MinPrimaryEnergy = (float)fMinPrimaryEnergy;
-	LogMinPrimaryEnergy = (float)fLogMinPrimaryEnergy;
-	InvLogDeltaPrimaryEnergy = (float)fInvLogDeltaPrimaryEnergy;
-	DeltaCum = (float)fDeltaCum;
+    float auxilary;
+    cudaMemcpyToSymbol(GSTables::SamplingTableSize, &fSamplingTableSize, sizeof(int));
+    auxilary = (float)fMinPrimaryEnergy;
+    cudaMemcpyToSymbol(GSTables::MinPrimaryEnergy, &auxilary, sizeof(float));
+    auxilary = (float)fLogMinPrimaryEnergy;
+    cudaMemcpyToSymbol(GSTables::LogMinPrimaryEnergy, &auxilary, sizeof(float));
+    auxilary = (float)fInvLogDeltaPrimaryEnergy;
+    cudaMemcpyToSymbol(GSTables::InvLogDeltaPrimaryEnergy, &auxilary, sizeof(float));
+	auxilary = (float)fDeltaCum;
+    cudaMemcpyToSymbol(GSTables::DeltaCum, &auxilary, sizeof(float));
+
+
+    std::vector<float> VarUTable;
+    std::vector<float> ParaATable;
+    std::vector<float> ParaBTable;
+    std::vector<float> TransformParamTable;
+    std::vector<float> PrimaryEnergyGridTable;
 
     TransformParamTable.resize(fNumPrimaryEnergies);
     PrimaryEnergyGridTable.resize(fNumPrimaryEnergies);
@@ -39,6 +82,27 @@ void SimGSTables::InitializeTables()
             ParaBTable[i * fSamplingTableSize + j] = (float)fTheTables[i]->fGSTable[j].fParmB;
         }
     }
+
+    cudaTextureDesc texDesc;
+    memset(&texDesc, 0, sizeof(texDesc));
+    texDesc.normalizedCoords = 0;
+    texDesc.filterMode = cudaFilterModePoint;
+    texDesc.addressMode[0] = cudaAddressModeClamp;
+    texDesc.addressMode[1] = cudaAddressModeClamp;
+
+    initCudaTexture(TransformParamTable.data(), &fNumPrimaryEnergies, 1, &texDesc, GSTables::texTransformParam, GSTables::arrTransformParam);
+    initCudaTexture(TransformParamTable.data(), &fNumPrimaryEnergies, 1, &texDesc, GSTables::texPrimaryEnergyGrid, GSTables::arrPrimaryEnergyGrid);
+
+    int size[2] = { fSamplingTableSize, fNumPrimaryEnergies };
+	initCudaTexture(VarUTable.data(), size, 2, &texDesc, GSTables::texVarU, GSTables::arrVarU);
+	initCudaTexture(ParaATable.data(), size, 2, &texDesc, GSTables::texParaA, GSTables::arrParaA);
+	initCudaTexture(ParaBTable.data(), size, 2, &texDesc, GSTables::texParaB, GSTables::arrParaB);
+
+    cudaMemcpyToSymbol(GSTables::d_texVarU, &GSTables::d_texVarU, sizeof(cudaTextureObject_t));
+	cudaMemcpyToSymbol(GSTables::d_texParaA, &GSTables::d_texParaA, sizeof(cudaTextureObject_t));
+	cudaMemcpyToSymbol(GSTables::d_texParaB, &GSTables::d_texParaB, sizeof(cudaTextureObject_t));
+	cudaMemcpyToSymbol(GSTables::d_texTransformParam, &GSTables::d_texTransformParam, sizeof(cudaTextureObject_t));
+	cudaMemcpyToSymbol(GSTables::d_texPrimaryEnergyGrid, &GSTables::d_texPrimaryEnergyGrid, sizeof(cudaTextureObject_t));
 }
 
 SimGSTables::SimGSTables() {
@@ -114,44 +178,6 @@ void SimGSTables::LoadData(const std::string& dataDir, int verbose) {
   fclose(f);
 
   InitializeTables();
-}
-
-float SimGSTables::SampleAngularDeflection(float eprim, float rndm1, float rndm2) {
-    // determine electron energy lower grid point and sample if that or one above is used now
-    float lpenergy = std::log(eprim);
-    float phigher = (lpenergy - LogMinPrimaryEnergy) * InvLogDeltaPrimaryEnergy;
-    int penergyindx = (int)phigher;
-    // keep the lower index of the energy bin
-    const int ielow = penergyindx;
-    phigher -= penergyindx;
-    if (rndm1 < phigher) {
-        ++penergyindx;
-    }
-    // should always be fine if electron-cut < eprim < E_max but make sure
-  //  penergyindx      = std::min(fNumPrimaryEnergies-1, penergyindx);
-    // sample the transformed variable \xi
-    
-    // lower index of the (common) discrete cumulative bin and the residual fraction
-    const int    indxl = (int)(rndm2 / DeltaCum);
-    const float resid = rndm2 - indxl * DeltaCum;
-    // compute value `u` by using ratin based numerical inversion
-    const float  parA = ParaATable[penergyindx* SamplingTableSize+indxl];
-    const float  parB = ParaBTable[penergyindx * SamplingTableSize + indxl];
-    const float    u0 = VarUTable[penergyindx * SamplingTableSize + indxl];
-    const float    u1 = VarUTable[penergyindx * SamplingTableSize + indxl + 1];
-    const float  dum1 = (1.0 + parA + parB) * DeltaCum * resid;
-    const float  dum2 = DeltaCum * DeltaCum + parA * DeltaCum * resid + parB * resid * resid;
-    const float  theU = u0 + dum1 / dum2 * (u1 - u0);
-    // transform back the sampled `u` to `mu(u)` using the transformation parameter `a`
-    // mu(u) = 1 - 2au/[1-u+a] as given by Eq.(34)
-    // interpolate (linearly) the transformation parameter to E
-    const float a0 = TransformParamTable[ielow];
-    const float a1 = TransformParamTable[ielow+1];
-    const float e0 = PrimaryEnergyGridTable[ielow];
-    const float e1 = PrimaryEnergyGridTable[ielow + 1];
-
-    const float parTransf = (a1 - a0) / (e1 - e0) * (eprim - e0) + a0;
-    return 1.f - 2.f * parTransf * theU / (1.f - theU + parTransf);
 }
 
 // it is assumed that the `eprim` electron energy: electron-cut < eprim <E_max

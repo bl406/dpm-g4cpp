@@ -20,32 +20,26 @@
 
 #include <vector>
 #include <string>
-
+#include <cuda_runtime_api.h>
 #include "SimDataLinear.hh"
 
 namespace IMFPMaxPhoton {
-	extern float Emin;
-	extern float Emax;
-	extern int NumData;
-	extern float InvDelta;
-    extern std::vector<float>  DataX;
-    extern std::vector<float>  DataY;
+	extern __constant__ float Emin;
+	extern __constant__ float Emax;
+	extern __constant__ float InvDelta;
 
-    // Linear interpolation. ilow is the `j` index such that x_j <= x < x_{j+1}
-    inline float GetValueAt(float xval, int ilow) {
-		float denom = IMFPMaxPhoton::DataX[ilow + 1] - IMFPMaxPhoton::DataX[ilow];	
-		return (IMFPMaxPhoton::DataY[ilow + 1] - IMFPMaxPhoton::DataY[ilow]) * (xval - IMFPMaxPhoton::DataX[ilow]) / denom 
-                + IMFPMaxPhoton::DataY[ilow];
+	extern cudaArray_t array;
+	extern cudaTextureObject_t tex;
+    extern __device__ cudaTextureObject_t d_tex;
+
+    inline __device__ float GetValue(float xval) {
+        float ilow = (xval - IMFPMaxPhoton::Emin) * IMFPMaxPhoton::InvDelta;
+		return tex1D<float>(d_tex, ilow + 0.5f);
     }
-    inline float GetValue(float xval) {
-        int ilow = (int)((xval - IMFPMaxPhoton::Emin) * IMFPMaxPhoton::InvDelta);
-        ilow = std::max(0, std::min(IMFPMaxPhoton::NumData - 2, ilow));
-        return GetValueAt(xval, ilow);
-    }
-    inline float GetIMFP(float ekin) {
+    inline __device__ float GetIMFP(float ekin) {
 		// make sure that E_min <= ekin < E_max
-		const float e = std::min(IMFPMaxPhoton::Emax - 1.0E-6f, std::max(IMFPMaxPhoton::Emin, ekin));
-        return std::max(1.0E-20f, GetValue(e));
+		const float e = fmin(IMFPMaxPhoton::Emax - 1.0E-6f, fmax(IMFPMaxPhoton::Emin, ekin));
+        return fmax(1.0E-20f, GetValue(e));
     }
 };
 

@@ -78,5 +78,5 @@ void SimPhotonData::Load(const std::string& dataDir, int verbose) {
 
   fIMFPTotal->InitializeIMFPTotalTable();
   fIMFPCompton->InitializeIMFPComptonTable();
-  fIMFPPairProd->InitializeIMFPPairProd();
+  fIMFPPairProd->InitializeIMFPPairProdTable();
 }

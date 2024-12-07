@@ -23,27 +23,36 @@
 
 #include "SimDataSpline.hh"
 
+namespace StoppingPower {
+    extern __constant__ float Estep;
+    extern __constant__ float Emin;
+    extern __constant__ float Emax;
+    extern __constant__ int ne;
+    extern __constant__ int nmat;
+
+	extern cudaArray_t array;
+	extern cudaTextureObject_t tex;
+	extern __device__ cudaTextureObject_t d_tex;
+
+    // the stopping power in [MeV/mm] [cm3/g] scalled units
+    inline __device__ float GetDEDXPerDensity(float ekin, int imat) {
+        // check vacuum case i.e. imat = -1
+        if (imat < 0) return 1.0E-20f;
+        // make sure that E_min <= ekin < E_max
+        const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
+        float index = (e - Emin) / Estep;
+		return tex2D<float>(d_tex, index + 0.5f, imat + 0.5f);
+    }
+}
+
 class SimStoppingPower {
-    static float eStep, eMin, eMax;
-    static int ne, nmat;
-    static std::vector<float> StoppingPowerTable;
+ 
 public:
 
   SimStoppingPower();
  ~SimStoppingPower();
 
   void  LoadData(const std::string& dataDir, int verbose);
-
-  // the stopping power in [MeV/mm] [cm3/g] scalled units
-  static inline float GetDEDXPerDensity(float ekin, int imat) {
-      // check vacuum case i.e. imat = -1
-      if (imat < 0) return 1.0E-20f;
-      // make sure that E_min <= ekin < E_max
-      const float e = std::min(eMax - 1.0E-6f, std::max(eMin, ekin));
-	  int index = (int)((e - eMin) / eStep);
-	  float weight = (e - eMin - index * eStep) / eStep;
-	  return (1.0f - weight) * StoppingPowerTable[imat * ne + index] + weight * StoppingPowerTable[imat * ne + index + 1];
-  }
 
   double GetDEDXPerDensity(double ekin, int imat) {
     // check vacuum case i.e. imat = -1

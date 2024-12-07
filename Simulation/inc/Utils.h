@@ -3,6 +3,7 @@
 #include <vector>
 #include <array>
 #include <cuda_runtime.h>
+#include "error_checking.h"
 
 template <class T>
 std::array<double, 2> CalMeanAndStd(const std::vector<T>& data) {
@@ -36,7 +37,7 @@ void initCudaTexture(T* hostData, int* dims, int ndim, cudaTextureDesc* texDesc,
         cudaMallocArray(&cuArray, &channelDesc, dims[0], dims[1]);
 
         // 将主机数据复制到2D CUDA数组
-        cudaMemcpyToArray(cuArray, 0, 0, hostData, dims[0] * dims[1] * sizeof(T), cudaMemcpyHostToDevice);
+		cudaMemcpy2DToArray(cuArray, 0, 0, hostData, dims[0] * sizeof(T), dims[0] * sizeof(T), dims[1], cudaMemcpyHostToDevice);      
     }
     else {
         // 分配3D CUDA数组

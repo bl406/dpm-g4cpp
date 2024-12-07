@@ -22,11 +22,25 @@
 
 #include "SimDataSpline.hh"
 
+namespace ITr1MFPElastic {
+    extern __constant__ float Estep;
+    extern __constant__ float Emin;
+    extern __constant__ float Emax;
+    extern __constant__ int ne;
+
+    extern cudaArray_t array;
+    extern cudaTextureObject_t tex;
+    extern __device__ cudaTextureObject_t d_tex;
+
+    __device__ extern  inline float GetITr1MFPPerDensity(float ekin, int imat) {
+        // make sure that E_min <= ekin < E_max
+        const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
+        float index = (e - Emin) / Estep;
+		return tex2D<float>(d_tex, index + 0.5f, imat + 0.5f);
+    }
+}
+
 class SimITr1MFPElastic {
-    static float eStep, eMin, eMax;
-    static int ne, nmat;
-	static std::vector<float> ITr1MFPTable;
-    
 public:
     
   SimITr1MFPElastic();
@@ -35,14 +49,6 @@ public:
   void  LoadData(const std::string& dataDir, int verbose);
 
   // the inverse Tr1-MFP in [1/mm] [cm3/g] scalled units
-  static inline float GetITr1MFPPerDensity(float ekin, int imat) {
-      // make sure that E_min <= ekin < E_max
-      const float e = std::min(SimITr1MFPElastic::eMax - 1.0E-6f, std::max(SimITr1MFPElastic::eMin, ekin));
-	  int index = (int)((e - SimITr1MFPElastic::eMin) / SimITr1MFPElastic::eStep);
-	  float weight = (e - SimITr1MFPElastic::eMin - index * SimITr1MFPElastic::eStep) / SimITr1MFPElastic::eStep;
-	  return (1.0f - weight) * ITr1MFPTable[imat * ne + index] + weight * ITr1MFPTable[imat * ne + index + 1];     
-  }
-
   double GetITr1MFPPerDensity(double ekin, int imat) {
     // make sure that E_min <= ekin < E_max
     const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));

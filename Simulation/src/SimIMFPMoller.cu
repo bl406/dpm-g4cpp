@@ -2,22 +2,40 @@
 
 #include <cstdio>
 #include <iostream>
+#include "Utils.h"
 
-float SimIMFPMoller::eStep;
-float SimIMFPMoller::eMin;
-float SimIMFPMoller::eMax;
-int SimIMFPMoller::ne;
-std::vector<float> SimIMFPMoller::IMFPMollerTable;
+namespace IMFPMoller {
+	cudaArray_t array;
+	cudaTextureObject_t tex;
+	__device__ cudaTextureObject_t d_tex;
+}
 
 void SimIMFPMoller::initializeIMFPMollerTable() {
-	SimIMFPMoller::ne = 500;
-	SimIMFPMoller::eMin = (float)fEmin;
-	SimIMFPMoller::eMax = (float)fEmax;
-	SimIMFPMoller::eStep = (SimIMFPMoller::eMax - SimIMFPMoller::eMin) / (ne - 1);
-	SimIMFPMoller::IMFPMollerTable.resize(ne);
+	int ne = 500;   
+	float Estep = (float)(fEmax - fEmin) / ne;
+    float aux;
+
+	cudaMemcpyToSymbol(IMFPMoller::ne, &ne, sizeof(int));
+	aux = (float)fEmin;
+	cudaMemcpyToSymbol(IMFPMoller::Emin, &aux, sizeof(float));
+	aux = (float)fEmax;
+	cudaMemcpyToSymbol(IMFPMoller::Emax, &aux, sizeof(float));
+	aux = (float)Estep;
+	cudaMemcpyToSymbol(IMFPMoller::Estep, &aux, sizeof(float));
+
+	std::vector<float> IMFPMollerTable;
+	IMFPMollerTable.resize(ne);
 	for (int j = 0; j < ne; j++) {
-		IMFPMollerTable[j] = (float)GetIMFPPerDensity(double(eMin + j * eStep));
+		IMFPMollerTable[j] = (float)GetIMFPPerDensity(double(fEmin + j * Estep));
 	}
+
+	cudaTextureDesc texDesc;
+	memset(&texDesc, 0, sizeof(texDesc));
+	texDesc.normalizedCoords = 0;
+	texDesc.filterMode = cudaFilterModeLinear;
+	texDesc.addressMode[0] = cudaAddressModeClamp;
+	initCudaTexture(IMFPMollerTable.data(), &ne, 1, &texDesc, IMFPMoller::tex, IMFPMoller::array);
+	cudaMemcpyToSymbol(IMFPMoller::d_tex, &IMFPMoller::tex, sizeof(cudaTextureObject_t));
 }
 
 void  SimIMFPMoller::LoadData(const std::string& dataDir, int verbose) {

@@ -2,27 +2,40 @@
 
 #include <cstdio>
 #include <iostream>
+#include "Utils.h"
 
-float SimStoppingPower::eStep;
-float SimStoppingPower::eMax;
-float SimStoppingPower::eMin;
-int SimStoppingPower::ne;
-int SimStoppingPower::nmat;
-std::vector<float> SimStoppingPower::StoppingPowerTable;
+namespace StoppingPower {
+    extern cudaArray_t array;
+    extern cudaTextureObject_t tex;
+    extern __device__ cudaTextureObject_t d_tex;
+}
 
 void SimStoppingPower::initializeStoppingPowerTable()
 {
-    SimStoppingPower::ne = 500;
-    SimStoppingPower::nmat = (float)fNumMaterial;
-    SimStoppingPower::eMin = (float)fEmin;
-    SimStoppingPower::eMax = (float)fEmax;
-    SimStoppingPower::eStep = (float)((fEmax - fEmin) / (ne - 1));
-    SimStoppingPower::StoppingPowerTable.resize(ne * nmat);
-    for (int i = 0; i < nmat; i++) {
+    int ne = 500;
+	float Estep = (float)(fEmax - fEmin) / ne;
+	cudaMemcpyToSymbol(StoppingPower::Emax, &fEmax, sizeof(float));
+	cudaMemcpyToSymbol(StoppingPower::Emin, &fEmin, sizeof(float));
+	cudaMemcpyToSymbol(StoppingPower::ne, &ne, sizeof(int));
+	cudaMemcpyToSymbol(StoppingPower::nmat, &fNumMaterial, sizeof(int));
+	cudaMemcpyToSymbol(StoppingPower::Estep, &Estep, sizeof(float));
+
+    std::vector<float> StoppingPowerTable;
+    StoppingPowerTable.resize(ne * fNumMaterial);
+    for (int i = 0; i < fNumMaterial; i++) {
         for (int j = 0; j < ne; j++) {
-            StoppingPowerTable[i * ne + j] = GetDEDXPerDensity(double(eMin + j * eStep), i);
+            StoppingPowerTable[i * ne + j] = (float)GetDEDXPerDensity(double(fEmin + j * Estep), i);
         }
     }
+
+    cudaTextureDesc texDesc;
+    memset(&texDesc, 0, sizeof(texDesc));
+    texDesc.normalizedCoords = 0;
+    texDesc.filterMode = cudaFilterModeLinear;
+    texDesc.addressMode[0] = cudaAddressModeClamp;
+    texDesc.addressMode[1] = cudaAddressModeClamp;
+	int size[2] = { ne, fNumMaterial };
+	initCudaTexture(StoppingPowerTable.data(), size, 2, &texDesc, StoppingPower::tex, StoppingPower::array);
 }
 
 SimStoppingPower::SimStoppingPower () {

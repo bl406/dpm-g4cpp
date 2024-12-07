@@ -19,13 +19,30 @@
 
 #include <vector>
 #include <string>
+#include <cuda_runtime_api.h>
 
 #include "SimDataSpline.hh"
 
+namespace IMFPMoller {
+	extern __constant__ float Estep;
+	extern __constant__ float Emin;
+	extern __constant__ float Emax;
+	extern __constant__ int ne;
+
+	extern cudaArray_t array;
+	extern cudaTextureObject_t tex;
+	extern __device__ cudaTextureObject_t d_tex;
+	
+	extern inline __device__ float GetIMFPPerDensity(float ekin) {
+		// make sure that E_min <= ekin < E_max
+		const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
+		float index = (e - IMFPMoller::Emin) / IMFPMoller::Estep;
+		return tex1D<float>(d_tex, index + 0.5f);
+	}
+}
+
 class SimIMFPMoller {
-    static float eStep, eMin, eMax;
-    static int ne;
-    static std::vector<float> IMFPMollerTable;
+   
 public:
 
   SimIMFPMoller() {}
@@ -34,20 +51,11 @@ public:
   void  LoadData(const std::string& dataDir, int verbose);
 
   // the inverse MFP in [1/mm] [cm3/g] scalled units
-  static inline float GetIMFPPerDensity(float ekin) {
-	  // make sure that E_min <= ekin < E_max
-	  const float e = std::min(SimIMFPMoller::eMax - 1.0E-6f, std::max(SimIMFPMoller::eMin, ekin));
-	  int index = (int)((e - SimIMFPMoller::eMin) / SimIMFPMoller::eStep);
-	  float weight = (e - SimIMFPMoller::eMin - index * SimIMFPMoller::eStep) / SimIMFPMoller::eStep;
-	  return (1.0f - weight) * IMFPMollerTable[index] + weight * IMFPMollerTable[index + 1];
-  }
-
   double GetIMFPPerDensity(double ekin) {
     // make sure that E_min <= ekin < E_max
     const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
     return std::max(1.0E-20, fData.GetValue(e));
   }
-
 
   //double GetIMFPPerDensity(double ekin, double logekin) {
   //  // make sure that E_min <= ekin < E_max

@@ -2,27 +2,45 @@
 
 #include <cstdio>
 #include <iostream>
+#include "Utils.h"
 
-float SimIMFPBrem::eStep;
-float SimIMFPBrem::eMin;
-float SimIMFPBrem::eMax;
-int SimIMFPBrem::ne;
-int SimIMFPBrem::nmat;
-std::vector<float> SimIMFPBrem::IMFPBremTable;
+namespace IMFPBrem {
+    cudaArray_t array;
+    cudaTextureObject_t tex;
+    __device__ cudaTextureObject_t d_tex;
+};
 
 void SimIMFPBrem::initializeIMFPBremTable()
 {
-    SimIMFPBrem::ne = 500;
-    SimIMFPBrem::nmat = fNumMaterial;
-    SimIMFPBrem::eMin = fEmin;
-    SimIMFPBrem::eMax = fEmax;
-    SimIMFPBrem::eStep = (fEmax - fEmin) / (ne - 1);
-    SimIMFPBrem::IMFPBremTable.resize(ne * nmat);
-    for (int i = 0; i < nmat; i++) {
+    int ne = 500;
+    float Estep = (float)(fEmax - fEmin) / ne;
+    float auxilary;
+    auxilary = (float)fEmax;
+    cudaMemcpyToSymbol(IMFPBrem::Emax, &auxilary, sizeof(float));
+	auxilary = (float)fEmin;
+    cudaMemcpyToSymbol(IMFPBrem::Emin, &auxilary, sizeof(float));
+    cudaMemcpyToSymbol(IMFPBrem::ne, &ne, sizeof(int));
+    cudaMemcpyToSymbol(IMFPBrem::nmat, &fNumMaterial, sizeof(int));
+	auxilary = (float)Estep;
+    cudaMemcpyToSymbol(IMFPBrem::Estep, &auxilary, sizeof(float));
+
+    std::vector<float> table;
+    table.resize(ne * fNumMaterial);
+    for (int i = 0; i < fNumMaterial; i++) {
         for (int j = 0; j < ne; j++) {
-            IMFPBremTable[i * ne + j] = GetIMFPPerDensity(double(eMin + j * eStep), i);
+            table[i * ne + j] = GetIMFPPerDensity(double(fEmin + j * Estep), i);
         }
     }
+
+    cudaTextureDesc texDesc;
+    memset(&texDesc, 0, sizeof(texDesc));
+    texDesc.normalizedCoords = 0;
+    texDesc.filterMode = cudaFilterModeLinear;
+    texDesc.addressMode[0] = cudaAddressModeClamp;
+    texDesc.addressMode[1] = cudaAddressModeClamp;
+    initCudaTexture(table.data(), &ne, 1, &texDesc, IMFPBrem::tex, IMFPBrem::array);
+
+	cudaMemcpyToSymbol(IMFPBrem::d_tex, &IMFPBrem::tex, sizeof(cudaTextureObject_t));
 }
 
 SimIMFPBrem::SimIMFPBrem () {

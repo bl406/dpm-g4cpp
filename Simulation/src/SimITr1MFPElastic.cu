@@ -2,26 +2,45 @@
 
 #include <cstdio>
 #include <iostream>
+#include "Utils.h"
 
-float SimITr1MFPElastic::eStep;
-float SimITr1MFPElastic::eMin;
-float SimITr1MFPElastic::eMax;
-int SimITr1MFPElastic::ne;
-int SimITr1MFPElastic::nmat;
-std::vector<float> SimITr1MFPElastic::ITr1MFPTable;
+namespace ITr1MFPElastic{
+    cudaArray_t array;
+    cudaTextureObject_t tex;
+    __device__ cudaTextureObject_t d_tex;
+};
 
 void SimITr1MFPElastic::initializeITr1MFPTable(){
-    SimITr1MFPElastic::ne = 500;
-    SimITr1MFPElastic::nmat = fNumMaterial;
-    SimITr1MFPElastic::eMin = fEmin;
-    SimITr1MFPElastic::eMax = fEmax;
-	SimITr1MFPElastic::eStep = (fEmax - fEmin) / (ne - 1);
-	SimITr1MFPElastic::ITr1MFPTable.resize(ne * nmat);
-	for (int i = 0; i < nmat; i++) {
-		for (int j = 0; j < ne; j++) {
-			ITr1MFPTable[i * ne + j] = GetITr1MFPPerDensity(double(eMin + j * eStep), i);
-		}
-	}
+    int ne = 500;
+    float Estep = (float)(fEmax - fEmin) / ne;
+	float auxilary;
+    cudaMemcpyToSymbol(ITr1MFPElastic::ne, &ne, sizeof(int));
+	auxilary = fEmax;
+    cudaMemcpyToSymbol(ITr1MFPElastic::Emax, &auxilary, sizeof(float));
+	auxilary = fEmin;
+    cudaMemcpyToSymbol(ITr1MFPElastic::Emin, &auxilary, sizeof(float));   
+	auxilary = Estep;
+    cudaMemcpyToSymbol(ITr1MFPElastic::Estep, &auxilary, sizeof(float));
+
+    std::vector<float> ITr1MFPPerDensityTable;
+    ITr1MFPPerDensityTable.resize(ne * fNumMaterial);
+    for (int i = 0; i < fNumMaterial; i++) {
+        for (int j = 0; j < ne; j++) {
+            ITr1MFPPerDensityTable[i * ne + j] = GetITr1MFPPerDensity(double(fEmin + j * Estep), i);
+        }
+    }
+
+    cudaTextureDesc texDesc;
+    memset(&texDesc, 0, sizeof(texDesc));
+    texDesc.normalizedCoords = 0;
+    texDesc.filterMode = cudaFilterModeLinear;
+    texDesc.addressMode[0] = cudaAddressModeClamp;
+    texDesc.addressMode[1] = cudaAddressModeClamp;
+
+	int size[2] = { ne, fNumMaterial };
+	initCudaTexture(ITr1MFPPerDensityTable.data(), size, 2, &texDesc, ITr1MFPElastic::tex, ITr1MFPElastic::array);
+
+	cudaMemcpyToSymbol(ITr1MFPElastic::d_tex, &ITr1MFPElastic::tex, sizeof(cudaTextureObject_t));
 }
 
 SimITr1MFPElastic::SimITr1MFPElastic() {

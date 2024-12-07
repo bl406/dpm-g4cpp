@@ -9,11 +9,12 @@ enable_language(CUDA)
 # 查找CUDA
 find_package(CUDA REQUIRED)
 # 设置CUDA编译选项
-set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}
     -O3 # 优化
     -g   # 调试信息
     -arch=sm_70 # 针对的GPU架构，根据需要修改
   )
+
 
 #----------------------------------------------------------------------------
 # Find Geant4 package
@@ -35,7 +36,7 @@ if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
   endif()
 endif()
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -W3")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W3")
 
 
 
@@ -57,6 +58,7 @@ file ( GLOB headers_SIM
   )
 file ( GLOB cxx_sources_SIM
     ${CMAKE_SOURCE_DIR}/Simulation/src/*.cc
+    ${CMAKE_SOURCE_DIR}/Simulation/src/*.cu
   )
 file ( GLOB validation_sources
         ${CMAKE_SOURCE_DIR}/modelValidationTests/src/*.cc
@@ -91,9 +93,9 @@ set(GETOPT_LIBRARIES getopt.lib)
 add_executable ( dpm_GenerateData ${CMAKE_SOURCE_DIR}/dpm_GenerateData.cc ${cxx_sources_GEN})
 target_link_libraries (dpm_GenerateData  ${Geant4_LIBRARIES})
 
-add_executable ( dpm_Simulate ${CMAKE_SOURCE_DIR}/dpm_Simulate.cc ${cxx_sources_SIM})
-target_compile_options(dpm_Simulate PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:${NVCC_FLAGS}>)
-target_link_libraries (dpm_Simulate PUBLIC ${GETOPT_LIBRARIES} cudart_static.lib)
+cuda_add_executable ( dpm_Simulate ${CMAKE_SOURCE_DIR}/dpm_Simulate.cu ${cxx_sources_SIM})
+# target_compile_options(dpm_Simulate PRIVATE ${CUDA_NVCC_FLAGS})
+target_link_libraries (dpm_Simulate ${GETOPT_LIBRARIES} cudart_static.lib)
 target_compile_definitions(dpm_Simulate PRIVATE _CRT_SECURE_NO_WARNINGS)
 set_target_properties(dpm_Simulate PROPERTIES CUDA_SEPARABLE_COMPILATION ON CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 
