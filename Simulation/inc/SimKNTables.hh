@@ -61,6 +61,8 @@ private:
 	
 	void InitializeTables();
 
+	void InitializeTables();
+
   void   CleanTables();
 
 

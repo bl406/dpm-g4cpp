@@ -74,6 +74,23 @@ SimKNTables::SimKNTables() {
   fInvLogDeltaPrimaryEnergy = -1.;
 }
 
+	KNTables::XdataTable.resize(fNumPrimaryEnergies * fSamplingTableSize);
+	KNTables::YdataTable.resize(fNumPrimaryEnergies * fSamplingTableSize);
+	KNTables::AliasWTable.resize(fNumPrimaryEnergies * fSamplingTableSize);
+	KNTables::AliasIndxTable.resize(fNumPrimaryEnergies * fSamplingTableSize);
+
+	int index;
+	for (int ie = 0; ie < fNumPrimaryEnergies; ++ie) {
+		for (int is = 0; is < fSamplingTableSize; ++is) {
+			index = ie * fSamplingTableSize + is;
+			KNTables::XdataTable[index] = (float)fTheTables[ie]->GetOnePoint(is).fXdata;
+			KNTables::YdataTable[index] = (float)fTheTables[ie]->GetOnePoint(is).fYdata;
+			KNTables::AliasWTable[index] = (float)fTheTables[ie]->GetOnePoint(is).fAliasW;
+			KNTables::AliasIndxTable[index] = fTheTables[ie]->GetOnePoint(is).fAliasIndx;
+		}
+	}
+}
+
 void SimKNTables::LoadData(const std::string& dataDir, int verbose) {
   char name[512];
   sprintf(name, "%s/compton_KNDtrData.dat", dataDir.c_str());
