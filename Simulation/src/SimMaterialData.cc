@@ -19,7 +19,7 @@ void  SimMaterialData::Load(const std::string& dataDir, int verbose) {
   fscanf(f, "%g  %g\n", &fElectronCut, &fGammaCut);
   // one line comment followed by the 3 MSC max-step lenght paraeters
   fgets(name, sizeof(name), f);
-  fscanf(f, "%g  %lg  %g\n", &fMSCStepParSLow, &fMSCStepParSHigh, &fMSCStepParEcross);
+  fscanf(f, "%g  %g  %g\n", &fMSCStepParSLow, &fMSCStepParSHigh, &fMSCStepParEcross);
   // one line comment followed by the number of materials
   fgets(name, sizeof(name), f);
   fscanf(f, "%d\n", &fNumMaterial);

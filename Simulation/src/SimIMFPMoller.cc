@@ -11,12 +11,12 @@ std::vector<float> SimIMFPMoller::IMFPMollerTable;
 
 void SimIMFPMoller::initializeIMFPMollerTable() {
 	SimIMFPMoller::ne = 500;
-	SimIMFPMoller::eMin = fEmin;
-	SimIMFPMoller::eMax = fEmax;
-	SimIMFPMoller::eStep = (fEmax - fEmin) / (ne - 1);
+	SimIMFPMoller::eMin = (float)fEmin;
+	SimIMFPMoller::eMax = (float)fEmax;
+	SimIMFPMoller::eStep = (SimIMFPMoller::eMax - SimIMFPMoller::eMin) / (ne - 1);
 	SimIMFPMoller::IMFPMollerTable.resize(ne);
 	for (int j = 0; j < ne; j++) {
-		IMFPMollerTable[j] = GetIMFPPerDensity(double(eMin + j * eStep));
+		IMFPMollerTable[j] = (float)GetIMFPPerDensity(double(eMin + j * eStep));
 	}
 }
 

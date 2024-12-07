@@ -75,4 +75,8 @@ void SimPhotonData::Load(const std::string& dataDir, int verbose) {
   fTheKNTables = new SimKNTables();
   fTheKNTables->LoadData(dataDir, verbose);
   //
+
+  fIMFPTotal->InitializeIMFPTotalTable();
+  fIMFPCompton->InitializeIMFPComptonTable();
+  fIMFPPairProd->InitializeIMFPPairProd();
 }

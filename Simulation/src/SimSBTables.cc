@@ -19,9 +19,9 @@ std::vector<int> SimSBTables::AliasIndxTable;
 
 void SimSBTables::InitializeTables()
 {
-	NumMaterial = (float)fNumMaterial;
-    SamplingTableSize = (float)fSamplingTableSize;
-    NumPrimaryEnergies = (float)fNumPrimaryEnergies;
+	NumMaterial = fNumMaterial;
+    SamplingTableSize = fSamplingTableSize;
+    NumPrimaryEnergies = fNumPrimaryEnergies;
     MinPrimaryEnergy = (float)fMinPrimaryEnergy;
     LogMinPrimaryEnergy = (float)fLogMinPrimaryEnergy;
     InvLogDeltaPrimaryEnergy = (float)fInvLogDeltaPrimaryEnergy;
@@ -36,9 +36,9 @@ void SimSBTables::InitializeTables()
         for (int ie = 0; ie < NumPrimaryEnergies; ++ie) {
             for (int is = 0; is < SamplingTableSize; ++is) {
                 index = im * NumPrimaryEnergies * SamplingTableSize + ie * SamplingTableSize + is;
-                XdataTable[index] = fTheTables[im][ie]->GetOnePoint(is).fXdata;
-                YdataTable[index] = fTheTables[im][ie]->GetOnePoint(is).fYdata;
-                AliasWTable[index] = fTheTables[im][ie]->GetOnePoint(is).fAliasW;
+                XdataTable[index] = (float)fTheTables[im][ie]->GetOnePoint(is).fXdata;
+                YdataTable[index] = (float)fTheTables[im][ie]->GetOnePoint(is).fYdata;
+                AliasWTable[index] = (float)fTheTables[im][ie]->GetOnePoint(is).fAliasW;
                 AliasIndxTable[index] = fTheTables[im][ie]->GetOnePoint(is).fAliasIndx;
             }
         }
@@ -138,15 +138,15 @@ float SimSBTables::Sample(int imat, int penergyindx, float rndm1, float rndm2) {
     if (AliasWTable[imat * NumPrimaryEnergies * SamplingTableSize + penergyindx * SamplingTableSize + indxl] < rest - indxl)
         indxl = AliasIndxTable[imat * NumPrimaryEnergies * SamplingTableSize + penergyindx * SamplingTableSize + indxl];
     // sample value within the selected bin by using linear aprox. of the p.d.f.
-    double xval = XdataTable[imat * NumPrimaryEnergies * SamplingTableSize + penergyindx * SamplingTableSize + indxl];
-    double xdelta = XdataTable[imat * NumPrimaryEnergies * SamplingTableSize + penergyindx * SamplingTableSize + indxl + 1] - xval;
+    float xval = XdataTable[imat * NumPrimaryEnergies * SamplingTableSize + penergyindx * SamplingTableSize + indxl];
+    float xdelta = XdataTable[imat * NumPrimaryEnergies * SamplingTableSize + penergyindx * SamplingTableSize + indxl + 1] - xval;
 	float yval = YdataTable[imat * NumPrimaryEnergies * SamplingTableSize + penergyindx * SamplingTableSize + indxl];
     if (yval > 0.0) {
-        double dum = (YdataTable[imat * NumPrimaryEnergies * SamplingTableSize + penergyindx * SamplingTableSize + indxl + 1] - yval) / yval;
+        float dum = (YdataTable[imat * NumPrimaryEnergies * SamplingTableSize + penergyindx * SamplingTableSize + indxl + 1] - yval) / yval;
         if (std::abs(dum) > 0.1)
-            return xval - xdelta / dum * (1.0 - std::sqrt(1.0 + rndm2 * dum * (dum + 2.0)));
+            return xval - xdelta / dum * (1.0f - std::sqrt(1.0f + rndm2 * dum * (dum + 2.0f)));
         else // use second order Taylor around dum = 0.0
-            return xval + rndm2 * xdelta * (1.0 - 0.5 * dum * (rndm2 - 1.0) * (1.0 + dum * rndm2));
+            return xval + rndm2 * xdelta * (1.0f - 0.5f * dum * (rndm2 - 1.0f) * (1.0f + dum * rndm2));
     }
     return xval + xdelta * std::sqrt(rndm2);
 }
@@ -156,8 +156,8 @@ float SimSBTables::SampleEnergyTransfer(float eprim, int imat, float rndm1, floa
 {
     if (imat < 0) return 0.0;
     // determine the primary electron energy lower grid point and sample if that or one above is used now
-    double lpenergy = std::log(eprim);
-    double phigher = (lpenergy - LogMinPrimaryEnergy) * InvLogDeltaPrimaryEnergy;
+    float lpenergy = std::log(eprim);
+    float phigher = (lpenergy - LogMinPrimaryEnergy) * InvLogDeltaPrimaryEnergy;
     int penergyindx = (int)phigher;
     phigher -= penergyindx;
     if (rndm1 < phigher) {
@@ -166,13 +166,13 @@ float SimSBTables::SampleEnergyTransfer(float eprim, int imat, float rndm1, floa
     // should always be fine if gamma-cut < eprim < E_max but make sure
   //  penergyindx       = std::min(fNumPrimaryEnergies-2, penergyindx);
     // sample the transformed variable
-    const double     xi = Sample(imat, penergyindx, rndm2, rndm3);
+    const float     xi = Sample(imat, penergyindx, rndm2, rndm3);
     // transform it back to kappa then to gamma energy (fMinPrimaryEnergy = gcut
     // and fLogMinPrimaryEnergy = log(gcut) so log(kappac) = log(gcut/eprim) =
     // = fLogMinPrimaryEnergy - lpenergy = -(lpenergy - fLogMinPrimaryEnergy) that
     // is computed above but keep it visible here)
-    const double kappac = MinPrimaryEnergy / eprim;
-    const double kappa = kappac * std::exp(-xi * (LogMinPrimaryEnergy - lpenergy));
+    const float kappac = MinPrimaryEnergy / eprim;
+    const float kappa = kappac * std::exp(-xi * (LogMinPrimaryEnergy - lpenergy));
     return kappa * eprim;
 }
 

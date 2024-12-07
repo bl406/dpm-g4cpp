@@ -12,12 +12,12 @@ std::vector<float> SimMaxScatStrength::MaxScatStrengthTable;
 void SimMaxScatStrength::initializeMaxScatStrengthTable()
 {
     SimMaxScatStrength::ne = 500;
-	SimMaxScatStrength::eMin = fEmin;
-	SimMaxScatStrength::eMax = fEmax;
-	SimMaxScatStrength::eStep = (fEmax - fEmin) / (ne - 1);
+	SimMaxScatStrength::eMin = (float)fEmin;
+	SimMaxScatStrength::eMax = (float)fEmax;
+	SimMaxScatStrength::eStep = (float)(fEmax - fEmin) / (ne - 1);
 	SimMaxScatStrength::MaxScatStrengthTable.resize(ne);
 	for (int j = 0; j < ne; j++) {
-		MaxScatStrengthTable[j] = GetMaxScatStrength(double(eMin + j * eStep));
+		MaxScatStrengthTable[j] = (float)GetMaxScatStrength(double(eMin + j * eStep));
 	}
 }
 

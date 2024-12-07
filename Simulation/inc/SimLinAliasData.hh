@@ -51,8 +51,6 @@ private:
   int                    fNumData;
   // the fNumData points that build up the sampling table
   std::vector<OnePoint>  fTheTable;  // [fNumData]
-
-
 };
 
 #endif

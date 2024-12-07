@@ -14,13 +14,13 @@ void SimIMFPBrem::initializeIMFPBremTable()
 {
     SimIMFPBrem::ne = 500;
     SimIMFPBrem::nmat = fNumMaterial;
-    SimIMFPBrem::eMin = fEmin;
-    SimIMFPBrem::eMax = fEmax;
-    SimIMFPBrem::eStep = (fEmax - fEmin) / (ne - 1);
+    SimIMFPBrem::eMin = (float)fEmin;
+    SimIMFPBrem::eMax = (float)fEmax;
+    SimIMFPBrem::eStep = (float)(fEmax - fEmin) / (ne - 1);
     SimIMFPBrem::IMFPBremTable.resize(ne * nmat);
     for (int i = 0; i < nmat; i++) {
         for (int j = 0; j < ne; j++) {
-            IMFPBremTable[i * ne + j] = GetIMFPPerDensity(double(eMin + j * eStep), i);
+            IMFPBremTable[i * ne + j] = (float)GetIMFPPerDensity(double(eMin + j * eStep), i);
         }
     }
 }

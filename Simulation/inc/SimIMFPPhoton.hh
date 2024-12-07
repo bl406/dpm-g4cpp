@@ -27,6 +27,100 @@
 
 #include "SimDataLinear.hh"
 
+namespace IMFPTotal
+{
+	extern int NumMaterial;
+	extern int NumData;
+	extern float Emin;
+	extern float Emax;
+	extern float InvDelta;
+	extern std::vector<float>  DataX;
+    extern std::vector<float>  DataY;
+
+    inline float GetValueAt(int imat, float xval, int ilow) {
+		int index = imat * NumData + ilow;
+        return (DataY[index + 1] - DataY[index]) * (xval - DataX[index]) / (DataX[index + 1] - DataX[index]) 
+            + DataY[index];
+    }
+
+    inline float GetValue(int imat, float xval) {
+        int ilow = (int)((xval - Emin) * InvDelta);
+        ilow = std::max(0, std::min(NumData - 2, ilow));
+        return GetValueAt(imat, xval, ilow);
+    }
+
+    // the inverse IMFP in [1/mm] [cm3/g] scalled units
+    inline float GetIMFPPerDensity(float ekin, int imat) {
+        // check vacuum case i.e. imat = -1
+        if (imat < 0) return 1.0E-20f;
+        // make sure that E_min <= ekin < E_max
+        const float e = std::min(Emax - 1.0E-6f, std::max(Emin, ekin));
+        return std::max(1.0E-20f, GetValue(imat, e));
+    }
+};
+
+namespace IMFPCompton {
+    extern int NumMaterial;
+    extern int NumData;
+    extern float Emin;
+    extern float Emax;
+    extern float InvDelta;
+    extern std::vector<float>  DataX;
+    extern std::vector<float>  DataY;
+
+    inline float GetValueAt(int imat, float xval, int ilow) {
+        int index = imat * NumData + ilow;
+        return (DataY[index + 1] - DataY[index]) * (xval - DataX[index]) / (DataX[index + 1] - DataX[index])
+            + DataY[index];
+    }
+
+    inline float GetValue(int imat, float xval) {
+        int ilow = (int)((xval - Emin) * InvDelta);
+        ilow = std::max(0, std::min(NumData - 2, ilow));
+        return GetValueAt(imat, xval, ilow);
+    }
+
+    // the inverse IMFP in [1/mm] [cm3/g] scalled units
+    inline float GetIMFPPerDensity(float ekin, int imat) {
+        // check vacuum case i.e. imat = -1
+        if (imat < 0) return 1.0E-20f;
+        // make sure that E_min <= ekin < E_max
+        const float e = std::min(Emax - 1.0E-6f, std::max(Emin, ekin));
+        return std::max(1.0E-20f, GetValue(imat, e));
+    }
+};
+
+namespace IMFPPairProd {
+    extern int NumMaterial;
+    extern int NumData;
+    extern float Emin;
+    extern float Emax;
+    extern float InvDelta;
+    extern std::vector<float>  DataX;
+    extern std::vector<float>  DataY;
+
+    inline float GetValueAt(int imat, float xval, int ilow) {
+        int index = imat * NumData + ilow;
+        return (DataY[index + 1] - DataY[index]) * (xval - DataX[index]) / (DataX[index + 1] - DataX[index])
+            + DataY[index];
+    }
+
+    inline float GetValue(int imat, float xval) {
+        int ilow = (int)((xval - Emin) * InvDelta);
+        ilow = std::max(0, std::min(NumData - 2, ilow));
+        return GetValueAt(imat, xval, ilow);
+    }
+
+    // the inverse IMFP in [1/mm] [cm3/g] scalled units
+    inline float GetIMFPPerDensity(float ekin, int imat) {
+        // check vacuum case i.e. imat = -1
+        if (imat < 0) return 1.0E-20f;
+        // make sure that E_min <= ekin < E_max
+        const float e = std::min(Emax - 1.0E-6f, std::max(Emin, ekin));
+        return std::max(1.0E-20f, GetValue(imat, e));
+    }
+};
+
 class SimIMFPPhoton {
 
 public:
@@ -44,14 +138,19 @@ public:
     const double e = std::min(fEmax-1.0E-6, std::max(fEmin, ekin));
     return std::max(1.0E-20, fDataPerMaterial[imat].GetValue(e));
   }
-  double GetIMFPPerDensity(double ekin, int ilow, int imat) {
-    // check vacuum case i.e. imat = -1
-    if (imat<0) return 1.0E-20;
-    return std::max(1.0E-20, fDataPerMaterial[imat].GetValueAt(ekin, ilow));
-  }
+  //double GetIMFPPerDensity(double ekin, int ilow, int imat) {
+  //  // check vacuum case i.e. imat = -1
+  //  if (imat<0) return 1.0E-20;
+  //  return std::max(1.0E-20, fDataPerMaterial[imat].GetValueAt(ekin, ilow));
+  //}
 
+  void InitializeIMFPTotalTable();
+  void InitializeIMFPComptonTable();
+  void InitializeIMFPPairProd();
 
 private:
+	void DataValidation();    
+
   // number of materials (photon data are taken to the actual material during the sim.)
   int     fNumMaterial;
 

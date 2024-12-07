@@ -6,31 +6,31 @@
 #include <iostream>
 
 
-Geom::Geom(double lbox, SimMaterialData* matData, int geomIndex)
+Geom::Geom(float lbox, SimMaterialData* matData, int geomIndex)
 : fPreDefinedGeomIndex(geomIndex),
   fLBox(lbox),
-  fInvLBox(1./lbox),
-  fLHalfBox(0.5*lbox),
+  fInvLBox(1.f/lbox),
+  fLHalfBox(0.5f*lbox),
   fMaterialData(matData) {
-  fEdepHist.resize(20,0.0);
-  fStepHist.resize(20,0.0);
+  fEdepHist.resize(20,0.0f);
+  fStepHist.resize(20,0.0f);
 }
 
 
 float Geom::DistanceToBoundary(float* r, float* v, int* i) {
-  static float kHalfTolerance = 0.5*kTolerance;
+  static float kHalfTolerance = 0.5f*kTolerance;
   //
   // Let's say that kExtent is the max extent of our geometry except the -z
   // direction in which it's only half box
   if (std::abs(r[0])>kExtent || std::abs(r[1])>kExtent || r[2]>kExtent || r[2]<-fLBox) {
     // indicates out of the geometry
-    return -1.0;
+    return -1.0f;
   }
   // compute the current x,y and z box/volume index based on the current r(rx,ry,rz)
   // round downward to integer
-  i[0] = std::floor((r[0]+fLHalfBox)*fInvLBox);
-  i[1] = std::floor((r[1]+fLHalfBox)*fInvLBox);
-  i[2] = std::floor((r[2]+fLHalfBox)*fInvLBox);
+  i[0] = (int)std::floor((r[0]+fLHalfBox)*fInvLBox);
+  i[1] = (int)std::floor((r[1]+fLHalfBox)*fInvLBox);
+  i[2] = (int)std::floor((r[2]+fLHalfBox)*fInvLBox);
   //
   // transform the r(rx,ry,rz) into the current local box
   const float trX = r[0]-i[0]*fLBox;
@@ -38,12 +38,12 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
   const float trZ = r[2]-i[2]*fLBox;
   //
   // compute the distance to boundary in the local box (centered around 0,0,0)
-  float pdist = 0.0;
-  float stmp  = 0.0;
-  float snext = 1.0E+20;
+  float pdist = 0.0f;
+  float stmp  = 0.0f;
+  float snext = 1.0E+20f;
   //
   // calculate x
-  if (v[0] > 0.0) {
+  if (v[0] > 0.0f) {
     pdist = fLHalfBox - trX;
     // check if actually this location is on boudnary
     if (pdist<kHalfTolerance) {
@@ -53,7 +53,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
     } else {
       snext = pdist/v[0];
     }
-  } else if (v[0] < 0.0) {
+  } else if (v[0] < 0.0f) {
     pdist = fLHalfBox + trX;
     if (pdist<kHalfTolerance) {
       // push to the otherside
@@ -65,7 +65,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
   }
   //
   // calcualte y
-  if (v[1] > 0.0) {
+  if (v[1] > 0.0f) {
     pdist = fLHalfBox - trY;
     if (pdist<kHalfTolerance) {
       r[1] += kTolerance;
@@ -76,7 +76,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
         snext = stmp;
       }
     }
-  } else if (v[1] < 0.0){
+  } else if (v[1] < 0.0f){
     pdist = fLHalfBox + trY;
     if (pdist<kHalfTolerance) {
       r[1] -= kTolerance;
@@ -90,7 +90,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
   }
   //
   // calculate z
-  if (v[2] > 0.0) {
+  if (v[2] > 0.0f) {
     pdist = fLHalfBox - trZ;
     if (pdist<kHalfTolerance) {
       r[2] += kTolerance;
@@ -101,7 +101,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
         snext = stmp;
       }
     }
-  } else if (v[2] < 0.0) {
+  } else if (v[2] < 0.0f) {
     pdist = fLHalfBox + trZ;
     if (pdist<kHalfTolerance) {
       r[2] -= kTolerance;
@@ -117,7 +117,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
 }
 
 
-void Geom::Score(double edep, int iz) {
+void Geom::Score(float edep, int iz) {
   if (iz>=0) {
     const std::size_t indx = (std::size_t)(iz);
     if (indx>=fEdepHist.size()) {
@@ -125,7 +125,7 @@ void Geom::Score(double edep, int iz) {
       fStepHist.resize(indx+10);
     }
     fEdepHist[indx] += edep;
-    fStepHist[indx] += 1.0;
+    fStepHist[indx] += 1.0f;
   }
 }
 
@@ -171,10 +171,10 @@ void Geom::Write(const std::string& fname, int nprimaries) {
              << " file " << fname << " could not be created! "
              << std::endl;
   }
-  const double toCm = 0.1;
-  int      sizeHist = fEdepHist.size();
-  double       norm = 1./(nprimaries*fLBox*toCm);
-  double    sumEdep = 0.0;
+  const float toCm = 0.1f;
+  int      sizeHist = (int)fEdepHist.size();
+  float       norm = 1.f/(nprimaries*fLBox*toCm);
+  float    sumEdep = 0.0f;
   for (int i=0; i<sizeHist; ++i) { sumEdep += fEdepHist[i]; }
   fprintf(f, "# === Mean energy deposit in the target: %13.4e  [MeV/event]\n", sumEdep/nprimaries);
   fprintf(f, "# === Energy deposit as a function of the depth: \n");
@@ -184,8 +184,8 @@ void Geom::Write(const std::string& fname, int nprimaries) {
   for (int i=0; i<sizeHist; ++i) {
     // set the iz voxel index and get the corresponding material density
     idumy[2] = i;
-    double matDensity = GetVoxelMaterialDensity(idumy);
-    fprintf(f, " %10d    %13.4e    %13.4e    %13.4e\n", i, (i+0.5)*fLBox*toCm, fEdepHist[i]*norm/matDensity, fStepHist[i]/nprimaries);
+    float matDensity = GetVoxelMaterialDensity(idumy);
+    fprintf(f, " %10d    %13.4e    %13.4e    %13.4e\n", i, (i+0.5f)*fLBox*toCm, fEdepHist[i]*norm/matDensity, fStepHist[i]/nprimaries);
   }
   fclose(f);
   std::cout << " === Energy deposit histogram is written to the file:  " << fname << "\n" << std::endl;

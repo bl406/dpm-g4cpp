@@ -139,7 +139,7 @@ float SimGSTables::SampleAngularDeflection(float eprim, float rndm1, float rndm2
     const float  parB = ParaBTable[penergyindx * SamplingTableSize + indxl];
     const float    u0 = VarUTable[penergyindx * SamplingTableSize + indxl];
     const float    u1 = VarUTable[penergyindx * SamplingTableSize + indxl + 1];
-    const float  dum1 = (1.0 + parA + parB) * DeltaCum * resid;
+    const float  dum1 = (1.0f + parA + parB) * DeltaCum * resid;
     const float  dum2 = DeltaCum * DeltaCum + parA * DeltaCum * resid + parB * resid * resid;
     const float  theU = u0 + dum1 / dum2 * (u1 - u0);
     // transform back the sampled `u` to `mu(u)` using the transformation parameter `a`

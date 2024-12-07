@@ -7,31 +7,40 @@
 #include <cmath>
 
 namespace KNTables {
-	int  SamplingTableSize;
-	int  NumPrimaryEnergies;
-	float MinPrimaryEnergy;
-	float LogMinPrimaryEnergy;
-	float InvLogDeltaPrimaryEnergy;
-    
-	float Sample(int penergyindx, float rndm1, float rndm2) {
-        // get the lower index of the bin by using the alias part
-        double rest = rndm1 * (SamplingTableSize - 1);
-        int    indxl = (int)(rest);
-		if (AliasWTable[penergyindx * SamplingTableSize + indxl] < rest - indxl)
-			indxl = AliasIndxTable[penergyindx * SamplingTableSize + indxl];       
-        // sample value within the selected bin by using linear aprox. of the p.d.f.        
-		float xval = XdataTable[penergyindx * SamplingTableSize + indxl];        
-		float xdelta = XdataTable[penergyindx * SamplingTableSize + indxl + 1] - xval;
-		if (YdataTable[penergyindx * SamplingTableSize + indxl] > 0.0f) {
-			float dum = (YdataTable[penergyindx * SamplingTableSize + indxl + 1] - YdataTable[penergyindx * SamplingTableSize + indxl]) / YdataTable[penergyindx * SamplingTableSize + indxl];
-			if (std::abs(dum) > 0.1)
-				return xval - xdelta / dum * (1.0f - std::sqrt(1.0f + rndm2 * dum * (dum + 2.0f)));
-			else // use second order Taylor around dum = 0.0
-				return xval + rndm2 * xdelta * (1.0f - 0.5f * dum * (rndm2 - 1.0f) * (1.0f + dum * rndm2));
-		}       
-        return xval + xdelta * std::sqrt(rndm2);
-	}
+    int SamplingTableSize;
+    int NumPrimaryEnergies;
+    float MinPrimaryEnergy;
+    float LogMinPrimaryEnergy;
+    float InvLogDeltaPrimaryEnergy;
+    std::vector<float> Xdata;
+    std::vector<float> Ydata;
+    std::vector<float> AliasW;
+    std::vector<int> AliasIndex;
 
+    // method provided to produce samples according to the represented distribution
+    // `rndm1` and `rndm2` are uniformly random values on [0,1]
+    inline float Sample(int ienergy, float rndm1, float rndm2) {
+        // get the lower index of the bin by using the alias part
+        float rest = rndm1 * (SamplingTableSize - 1);
+        int    indxl = (int)(rest);
+        
+        if (AliasW[ienergy * SamplingTableSize + indxl] < rest - indxl)
+            indxl = AliasIndex[ienergy * SamplingTableSize + indxl];
+        // sample value within the selected bin by using linear aprox. of the p.d.f.
+        float xval = Xdata[ienergy * SamplingTableSize + indxl];
+        float xdelta = Xdata[ienergy * SamplingTableSize + indxl + 1] - xval;
+		float yval = Ydata[ienergy * SamplingTableSize + indxl];
+        if (yval > 0.0f) {
+            float dum = (Ydata[ienergy * SamplingTableSize + indxl + 1] - yval) / yval;
+            if (std::abs(dum) > 0.1)
+                return xval - xdelta / dum * (1.0f - std::sqrt(1.0f + rndm2 * dum * (dum + 2.0f)));
+            else // use second order Taylor around dum = 0.0
+                return xval + rndm2 * xdelta * (1.0f - 0.5f * dum * (rndm2 - 1.0f) * (1.0f + dum * rndm2));
+        }
+        return xval + xdelta * std::sqrt(rndm2);
+    }
+
+    // it is assumed that: gamma-cut < egamma < E_max
     float SampleEnergyTransfer(float egamma, float rndm1, float rndm2, float rndm3) {
         const float kEMC2 = 0.510991f;
         // determine primary photon energy lower grid point and sample if that or one above is used now
@@ -54,7 +63,7 @@ namespace KNTables {
         float kappa = egamma / kEMC2;
         return std::exp(std::log(1.f + 2.f * kappa) * (xi - 1.f)); // eps = E_1/E_0
     }
-}
+};
 
 SimKNTables::SimKNTables() {
   // all members will be set when loading the data from the file
@@ -63,30 +72,6 @@ SimKNTables::SimKNTables() {
   fMinPrimaryEnergy         = -1.;
   fLogMinPrimaryEnergy      = -1.;
   fInvLogDeltaPrimaryEnergy = -1.;
-}
-
-void SimKNTables::InitializeTables(){
-	KNTables::SamplingTableSize = fSamplingTableSize;
-	KNTables::NumPrimaryEnergies = fNumPrimaryEnergies;
-	KNTables::MinPrimaryEnergy = (float)fMinPrimaryEnergy;
-	KNTables::LogMinPrimaryEnergy = (float)fLogMinPrimaryEnergy;
-	KNTables::InvLogDeltaPrimaryEnergy = (float)fInvLogDeltaPrimaryEnergy;
-
-	KNTables::XdataTable.resize(fNumPrimaryEnergies * fSamplingTableSize);
-	KNTables::YdataTable.resize(fNumPrimaryEnergies * fSamplingTableSize);
-	KNTables::AliasWTable.resize(fNumPrimaryEnergies * fSamplingTableSize);
-	KNTables::AliasIndxTable.resize(fNumPrimaryEnergies * fSamplingTableSize);
-
-	int index;
-	for (int ie = 0; ie < fNumPrimaryEnergies; ++ie) {
-		for (int is = 0; is < fSamplingTableSize; ++is) {
-			index = ie * fSamplingTableSize + is;
-			KNTables::XdataTable[index] = (float)fTheTables[ie]->GetOnePoint(is).fXdata;
-			KNTables::YdataTable[index] = (float)fTheTables[ie]->GetOnePoint(is).fYdata;
-			KNTables::AliasWTable[index] = (float)fTheTables[ie]->GetOnePoint(is).fAliasW;
-			KNTables::AliasIndxTable[index] = fTheTables[ie]->GetOnePoint(is).fAliasIndx;
-		}
-	}
 }
 
 void SimKNTables::LoadData(const std::string& dataDir, int verbose) {
@@ -135,6 +120,8 @@ void SimKNTables::LoadData(const std::string& dataDir, int verbose) {
     }
   }
   fclose(f);
+
+  InitializeTables();
 }
 
 // it is assumed that: gamma-cut < egamma < E_max
@@ -167,4 +154,25 @@ void SimKNTables::CleanTables() {
     if (fTheTables[i]) delete fTheTables[i];
   }
   fTheTables.clear();
+}
+
+void SimKNTables::InitializeTables() {
+	KNTables::NumPrimaryEnergies = fNumPrimaryEnergies;
+	KNTables::SamplingTableSize = fSamplingTableSize;
+	KNTables::MinPrimaryEnergy = (float)fMinPrimaryEnergy;
+	KNTables::LogMinPrimaryEnergy = (float)fLogMinPrimaryEnergy;
+	KNTables::InvLogDeltaPrimaryEnergy = (float)fInvLogDeltaPrimaryEnergy;
+	KNTables::Xdata.resize(KNTables::NumPrimaryEnergies * KNTables::SamplingTableSize);
+	KNTables::Ydata.resize(KNTables::NumPrimaryEnergies * KNTables::SamplingTableSize);
+	KNTables::AliasW.resize(KNTables::NumPrimaryEnergies * KNTables::SamplingTableSize);
+	KNTables::AliasIndex.resize(KNTables::NumPrimaryEnergies * KNTables::SamplingTableSize);
+	for (int i = 0; i < fNumPrimaryEnergies; i++) {
+		for (int j = 0; j < fSamplingTableSize; j++) {
+			auto& point = fTheTables[i]->GetOnePoint(j);
+			KNTables::Xdata[i * fSamplingTableSize + j] = (float)point.fXdata;
+			KNTables::Ydata[i * fSamplingTableSize + j] = (float)point.fYdata;
+			KNTables::AliasW[i * fSamplingTableSize + j] = (float)point.fAliasW;
+			KNTables::AliasIndex[i * fSamplingTableSize + j] = point.fAliasIndx;
+		}
+	}
 }

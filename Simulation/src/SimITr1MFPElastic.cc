@@ -13,13 +13,13 @@ std::vector<float> SimITr1MFPElastic::ITr1MFPTable;
 void SimITr1MFPElastic::initializeITr1MFPTable(){
     SimITr1MFPElastic::ne = 500;
     SimITr1MFPElastic::nmat = fNumMaterial;
-    SimITr1MFPElastic::eMin = fEmin;
-    SimITr1MFPElastic::eMax = fEmax;
-	SimITr1MFPElastic::eStep = (fEmax - fEmin) / (ne - 1);
+    SimITr1MFPElastic::eMin = (float)fEmin;
+    SimITr1MFPElastic::eMax = (float)fEmax;
+	SimITr1MFPElastic::eStep = (float)(fEmax - fEmin) / (ne - 1);
 	SimITr1MFPElastic::ITr1MFPTable.resize(ne * nmat);
 	for (int i = 0; i < nmat; i++) {
 		for (int j = 0; j < ne; j++) {
-			ITr1MFPTable[i * ne + j] = GetITr1MFPPerDensity(double(eMin + j * eStep), i);
+			ITr1MFPTable[i * ne + j] = (float)GetITr1MFPPerDensity(double(eMin + j * eStep), i);
 		}
 	}
 }

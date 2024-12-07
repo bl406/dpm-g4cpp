@@ -61,7 +61,7 @@ public:
 
   // Constructor with the `lbox` voxel box size and maximum extent of the
   // geometry as input raguments. (the latter has a defult 10.0 [cm] value).
-  Geom (double lbox, SimMaterialData* matData, int geomIndex=0);
+  Geom (float lbox, SimMaterialData* matData, int geomIndex=0);
 
   // Computes the distance to the volume boundary from the given `rLocation`
   // location along the given `vDirection` direction. When the input `rLocation`
@@ -86,16 +86,16 @@ public:
 
   // Returns with the material density of the voxel specified by its `iVoxel`
   // voxel index triplet input ragument.
-  double GetVoxelMaterialDensity(int* iVoxel) {
+  float GetVoxelMaterialDensity(int* iVoxel) {
     const int imat = GetMaterialIndex(iVoxel);
-    return imat > -1 ? fMaterialData->fMaterialDensity[imat] : 1.0E-40;
+    return imat > -1 ? fMaterialData->fMaterialDensity[imat] : 1.0E-40f;
   }
-  double GetVoxelMaterialDensity(int imat) {
-    return imat > -1 ? fMaterialData->fMaterialDensity[imat] : 1.0E-40;
+  float GetVoxelMaterialDensity(int imat) {
+    return imat > -1 ? fMaterialData->fMaterialDensity[imat] : 1.0E-40f;
   }
 
   // adds the `edep` energy deposit to the voxel/box with z index of `iz`
-  void   Score(double edep, int iz);
+  void   Score(float edep, int iz);
 
   // writes the histograms into the `fname` file
   void   Write(const std::string& fname, int nprimaries);
@@ -104,25 +104,25 @@ public:
 private:
 
   // tolerance of the boundary computation [mm]
-  const double         kTolerance = 1.0E-4;
+  const float         kTolerance = 1.0E-4f;
   // maximum extent of the geometry (except in the -z direction) in  [mm]
-  const double         kExtent    = 100.0;
+  const float         kExtent    = 100.0f;
 
   // index of the predefined geometry
   int                  fPreDefinedGeomIndex;
 
   // lenght of the box (cube for the simplicity)
-  double               fLBox;
-  double               fInvLBox;
-  double               fLHalfBox;
+  float               fLBox;
+  float               fInvLBox;
+  float               fLHalfBox;
 
   // poiner to the material data object set at construction (used only for the
   // material density in [g/cm3] in `GetVoxelMaterialDensity`).
   SimMaterialData*     fMaterialData;
 
   // energy deposit and step number histograms: along the depth (i.e. along +z)
-  std::vector<double>  fEdepHist;
-  std::vector<double>  fStepHist;
+  std::vector<float>  fEdepHist;
+  std::vector<float>  fStepHist;
 
 };
 

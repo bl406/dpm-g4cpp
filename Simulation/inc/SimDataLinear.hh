@@ -24,6 +24,12 @@ public:
   SimDataLinear(int size);
  ~SimDataLinear() {}
 
+ // The x,y-values
+ struct OnePoint {
+     double fX;
+     double fY;
+ };
+
   // set the size, i.e. the number of data to be stored (must be called before
   // filling in the data by using the FillData method)
   void  SetSize(int size) { fData.resize(size); fNumData = size; }
@@ -44,7 +50,11 @@ public:
     return GetValueAt(xval, ilow);
   }
 
+  int   GetNumData() const { return fNumData; }
+  double GetMinX() const { return fMinX; }
+  double GetInvDelta() const { return fInvDelta; }
 
+  const OnePoint& GetData(int indx) const { return fData[indx]; }
 private:
 
   // Number of data stored
@@ -54,11 +64,6 @@ private:
   // Inverse delta x i.e. 1./[x_{i+1}-x_i]
   double  fInvDelta;
 
-  // The x,y-values
-  struct OnePoint {
-    double fX;
-    double fY;
-  };
   std::vector<OnePoint>  fData;
 };
 

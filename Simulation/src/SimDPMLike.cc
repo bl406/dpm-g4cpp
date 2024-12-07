@@ -462,18 +462,18 @@ int KeepTrackingElectron(SimMaterialData& matData, Geom& geom, Track& track, flo
 
 
 void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& geom, Track& track) {
-  const float kPI      = 3.1415926535897932;
-  const float kEMC2    = 0.510991;
-  const float kInvEMC2 = 1.0/kEMC2;
+  const float kPI      = 3.1415926535897932f;
+  const float kEMC2    = 0.510991f;
+  const float kInvEMC2 = 1.0f/kEMC2;
   //
   const float theElectronCut = matData.fElectronCut;
   const float theGammaCut    = matData.fGammaCut;
   //
-  while (track.fEkin > 0.0) {
+  while (track.fEkin > 0.0f) {
     // get the global max-macroscopic cross section and use it for samppling the
     // the length till the next photon intercation (that includes delta interaction
     // as well)
-    float globalMaxMFP   = 1.0/phData.GetIMFPTotalMax()->GetIMFP(track.fEkin);
+    float globalMaxMFP   = 1.0f / IMFPMaxPhoton::GetIMFP(track.fEkin);
     float     stepLength = -globalMaxMFP*std::log(Random::UniformRand());
     // Update particle position, track length etc.
     track.fPosition[0] += track.fDirection[0]*stepLength;
@@ -499,26 +499,26 @@ void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& g
     track.fMatIndx = theVoxelMatIndx;
     float theVoxelMatDensity = geom.GetVoxelMaterialDensity(theVoxelMatIndx);
     //
-    float totalIMFP = phData.GetIMFPTotal()->GetIMFPPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity;
+    float totalIMFP = IMFPTotal::GetIMFPPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity;
     //
     // P(no-inetaction) = 1.0-mxsecTotal/mxsecGlobalMax
     const float r1 = Random::UniformRand();
-    float theProb = 1.0-totalIMFP*globalMaxMFP;
+    float theProb = 1.0f-totalIMFP*globalMaxMFP;
     if (r1 < theProb) {
       continue; // with the same globalMaxMFP since the enrgy did not changed !!!
     }
     //
     // otherwise: check which interaction happend P(i) = mxsec-i/mxsecTotal
     // compute cumulated probability of adding Compton prob
-    theProb += phData.GetIMFPCompton()->GetIMFPPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity*globalMaxMFP;
+    theProb += IMFPCompton::GetIMFPPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity*globalMaxMFP;
     if (r1 < theProb) {
       // Compton interaction: Klein-Nishina like
       // the photon scattering angle and post-interafctin energy fraction
-      const float theEps = phData.GetTheKNTables()->SampleEnergyTransfer(track.fEkin, Random::UniformRand(), Random::UniformRand(), Random::UniformRand());
+      const float theEps = KNTables::SampleEnergyTransfer(track.fEkin, Random::UniformRand(), Random::UniformRand(), Random::UniformRand());
       const float kappa  = track.fEkin*kInvEMC2;
-      const float phCost = 1.0-(1.0-theEps)/(theEps*kappa); // 1- (1-cost)
+      const float phCost = 1.0f-(1.0f-theEps)/(theEps*kappa); // 1- (1-cost)
       const float phEner = theEps*track.fEkin;
-      const float phPhi  = 2.0*kPI*Random::UniformRand();
+      const float phPhi  = 2.0f*kPI*Random::UniformRand();
       const float elEner = track.fEkin-phEner;
       // insert the secondary e- only if ist energy is above the tracking cut
       // and deposit the corresponding enrgy otherwise
@@ -528,7 +528,7 @@ void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& g
       } else {
         // insert secondary e- but first compute its cost
         const float e0 = track.fEkin*kInvEMC2;
-        float elCost   = (1.0+e0)*std::sqrt((1.0-theEps)/(e0*(2.0+e0*(1.0-theEps))));
+        float elCost   = (1.0f+e0)*std::sqrt((1.0f-theEps)/(e0*(2.0f+e0*(1.0f-theEps))));
         //
         Track& aTrack        = TrackStack::Instance().Insert();
         aTrack.fType         = -1;
@@ -540,7 +540,7 @@ void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& g
         aTrack.fBoxIndx[0]   = track.fBoxIndx[0];
         aTrack.fBoxIndx[1]   = track.fBoxIndx[1];
         aTrack.fBoxIndx[2]   = track.fBoxIndx[2];
-        const float sint    = std::sqrt((1.0+elCost)*(1.0-elCost));
+        const float sint    = std::sqrt((1.0f+elCost)*(1.0f-elCost));
         const float phi     = phPhi+kPI;
         aTrack.fDirection[0] = sint*std::cos(phi);
         aTrack.fDirection[1] = sint*std::sin(phi);
@@ -556,7 +556,7 @@ void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& g
         track.fEkin = 0.0;
         return;
       } else {
-        float phSint = std::sqrt((1.0-phCost)*(1.0+phCost));
+        float phSint = std::sqrt((1.0f-phCost)*(1.0f+phCost));
         float u1 = phSint*std::cos(phPhi);
         float u2 = phSint*std::sin(phPhi);
         float u3 = phCost;
@@ -571,10 +571,10 @@ void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& g
     }
 
     // compute cumulated probability of adding Pair-production prob
-    theProb += phData.GetIMFPPairProd()->GetIMFPPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity*globalMaxMFP;
+    theProb += IMFPPairProd::GetIMFPPerDensity(track.fEkin, theVoxelMatIndx)*theVoxelMatDensity*globalMaxMFP;
     if (r1 < theProb) {
       // Pair-production interaction:
-      const float sumEkin = track.fEkin-2.0*kEMC2;
+      const float sumEkin = track.fEkin-2.0f*kEMC2;
       // simple uniform share of the enrgy between the e- and e+ going to the
       // same direction as the original photon.
       // no difference between the e- and e+ transport till the end:
@@ -660,9 +660,9 @@ void RotateToLabFrame(float* dir, float* refdir) {
 // It is assumed that track.fEkin > gamma-cut!
 // (Interaction is not possible otherwise)
 void PerformBrem(Track& track, SimSBTables* theSBTable) {
-  const float kPI            = 3.1415926535897932;
-  const float kEMC2          = 0.510991;
-  const float kHalfSqrt2EMC2 = kEMC2 * 0.7071067812;
+  const float kPI            = 3.1415926535897932f;
+  const float kEMC2          = 0.510991f;
+  const float kHalfSqrt2EMC2 = kEMC2 * 0.7071067812f;
   // sample energy transferred to the emitted gamma photon
   const float eGamma = theSBTable->SampleEnergyTransfer(track.fEkin,
                                                          track.fMatIndx,
@@ -684,9 +684,9 @@ void PerformBrem(Track& track, SimSBTables* theSBTable) {
  // compute emission direction (rough approximation in DPM by the mean)
  // and no deflection of the primary e-
  const float dum0    = kHalfSqrt2EMC2/(track.fEkin+kEMC2);
- const float cost    = std::max(-1.0, std::min(1.0, 1.0-dum0*dum0));
- const float sint    = std::sqrt((1.0+cost)*(1.0-cost));
- const float phi     = 2.0*kPI*Random::UniformRand();
+ const float cost    = std::max(-1.0f, std::min(1.0f, 1.0f-dum0*dum0));
+ const float sint    = std::sqrt((1.0f+cost)*(1.0f-cost));
+ const float phi     = 2.0f*kPI*Random::UniformRand();
  aTrack.fDirection[0] = sint*std::cos(phi);
  aTrack.fDirection[1] = sint*std::sin(phi);
  aTrack.fDirection[2] = cost;
@@ -698,9 +698,9 @@ void PerformBrem(Track& track, SimSBTables* theSBTable) {
 // It is assumed that track.fEkin > 2*electron-cut!
 // (Interaction is not possible otherwise)
 void PerformMoller(Track& track, SimMollerTables* theMollerTable) {
-  const float kPI     = 3.1415926535897932;
-  const float kEMC2   = 0.510991;
-  const float k2EMC2  = 2.0*kEMC2;
+  const float kPI     = 3.1415926535897932f;
+  const float kEMC2   = 0.510991f;
+  const float k2EMC2  = 2.0f*kEMC2;
   const float secEkin = theMollerTable->SampleEnergyTransfer( track.fEkin,
                                                                Random::UniformRand(),
                                                                Random::UniformRand(),
@@ -718,8 +718,8 @@ void PerformMoller(Track& track, SimMollerTables* theMollerTable) {
   aTrack.fBoxIndx[0]   = track.fBoxIndx[0];
   aTrack.fBoxIndx[1]   = track.fBoxIndx[1];
   aTrack.fBoxIndx[2]   = track.fBoxIndx[2];
-  const float sint    = std::sqrt((1.0+secCost)*(1.0-secCost));
-  const float phi     = 2.0*kPI*Random::UniformRand();
+  const float sint    = std::sqrt((1.0f+secCost)*(1.0f-secCost));
+  const float phi     = 2.0f*kPI*Random::UniformRand();
   aTrack.fDirection[0] = sint*std::cos(phi);
   aTrack.fDirection[1] = sint*std::sin(phi);
   aTrack.fDirection[2] = secCost;
@@ -730,14 +730,14 @@ void PerformMoller(Track& track, SimMollerTables* theMollerTable) {
 
 
 void PerformMSCAngularDeflection(Track& track, float ekin0) {
-  const float kPI  = 3.1415926535897932;
+  const float kPI  = 3.1415926535897932f;
   const float dum0 = SimGSTables::SampleAngularDeflection( ekin0,
                                                             Random::UniformRand(),
                                                             Random::UniformRand());
   const float cost = std::max(-1.0f, std::min(1.0f, dum0));
-  const float sint = std::sqrt((1.0-cost)*(1.0+cost));
+  const float sint = std::sqrt((1.0f-cost)*(1.0f+cost));
   // smaple \phi: uniform in [0,2Pi] <== spherical symmetry of the scattering potential
-  const float phi  = 2.0*kPI*Random::UniformRand();
+  const float phi  = 2.0f*kPI*Random::UniformRand();
   // compute new direction (relative to 0,0,1 i.e. in the scattering frame)
   float u1 = sint*std::cos(phi);
   float u2 = sint*std::sin(phi);
@@ -752,12 +752,12 @@ void PerformMSCAngularDeflection(Track& track, float ekin0) {
 
 
 void PerformAnnihilation(Track& track) {
-  const float kPI      = 3.1415926535897932;
-  const float kEMC2    = 0.510991;
+  const float kPI      = 3.1415926535897932f;
+  const float kEMC2    = 0.510991f;
   // isotropic direction
-  const float cost = 1.0-2.0*Random::UniformRand();
-  const float sint = std::sqrt((1.0-cost)*(1.0+cost));
-  const float phi  = 2.0*kPI*Random::UniformRand();
+  const float cost = 1.0f-2.0f*Random::UniformRand();
+  const float sint = std::sqrt((1.0f-cost)*(1.0f+cost));
+  const float phi  = 2.0f*kPI*Random::UniformRand();
   const float rx   = sint*cos(phi);
   const float ry   = sint*sin(phi);
   const float rz   = cost;

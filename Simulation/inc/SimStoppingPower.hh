@@ -37,7 +37,7 @@ public:
   // the stopping power in [MeV/mm] [cm3/g] scalled units
   static inline float GetDEDXPerDensity(float ekin, int imat) {
       // check vacuum case i.e. imat = -1
-      if (imat < 0) return 1.0E-20;
+      if (imat < 0) return 1.0E-20f;
       // make sure that E_min <= ekin < E_max
       const float e = std::min(eMax - 1.0E-6f, std::max(eMin, ekin));
 	  int index = (int)((e - eMin) / eStep);
