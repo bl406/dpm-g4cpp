@@ -8,6 +8,12 @@
 #include "Utils.h"
 
 namespace MollerTables {
+    __constant__ int   SampleTableSize;
+    __constant__ int   NumPrimaryEnergies;
+    __constant__ float MinPrimaryEnergy;
+    __constant__ float LogMinPrimaryEnergy;
+    __constant__ float InvLogDeltaPrimaryEnergy;
+
 	cudaArray_t arrXdata;
 	cudaArray_t arrYdata;
 	cudaArray_t arrAliasW;

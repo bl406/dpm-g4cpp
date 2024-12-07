@@ -15,48 +15,80 @@
 
 #include <vector>
 #include <iostream>
+
+class Source;
+
 class TrackStack {
 public:
-   static TrackStack& Instance();
+	TrackStack() = default;
+	~TrackStack() = default;
 
-  // pops a secondary track from the secondary strack and writes to aTrack;
-  // and returns with its original index (empty stack if returns -1)
-  int PopIntoThisTrack(Track& track) {
-    // return -1 if the secondary stack is empty
-    if (fCurIndx<0) {
-      return -1;
-    }
-    // compy the next avaiable seconday track to the primary
-    fSecondaries[fCurIndx].Copy(track);
-    // return with the currently used secondary index and decrease
-    return fCurIndx--;
-  }
+	void init(int maxsz);
+	void release();
 
-  // returns a reference to a secondary track (that is reset before)
-  // NOTE: the stack is resized when needed
-  Track&  Insert() {
-    // make sure that the size if fine
-    ++fCurIndx;
-    if (fCurIndx==fSize) {
-      fSize *= 2;
-      fSecondaries.resize(fSize);
-    }
-    // retrun a eference to the next avaiable secondary track
-    fSecondaries[fCurIndx].Reset();
-    return fSecondaries[fCurIndx];
-  }
+	__host__ __device__
+		int size() {
+		return fTop + 1;
+	}
 
-private:
-  TrackStack() {
-    fSize    = 16;
-    fCurIndx = -1;
-    fSecondaries.resize(fSize);
-  }
+	__host__ __device__
+		bool empty() {
+		return fTop == -1;
+	}
 
-private:
-  int fSize;                       // #tracks in the stack
-  int fCurIndx;                    // the (max) used seconday index on the stack
-  std::vector<Track> fSecondaries; // secondary tracks
+	__host__ __device__
+		bool full() {
+		return fTop == fCapacity - 1;
+	}
+
+	__host__
+		void push(const Track& h);
+
+	__device__ Track& push_one();
+
+	void pop_n(Track* target, int n);
+
+	int fCapacity;
+	int fTop;
+	Track* fData;
 };
+
+class TrackSeq {
+public:
+	TrackSeq() = default;
+	~TrackSeq() = default;
+	
+	void init(int maxsz);
+	
+	void release();
+
+	void add_n_primary(int n, const Source* source);
+	void add_secondary(TrackStack* stack);
+
+	__host__ __device__
+		int size() {
+		return fSize;
+	}
+	__host__ __device__
+		bool empty() {
+		return fSize == 0;
+	}
+	__host__ __device__
+		bool full() {
+			return fSize == fCapacity;
+	}
+	
+	int fCapacity;
+	int fSize;
+	Track* fData;
+};
+
+extern TrackStack h_PhotonStack;
+extern TrackStack h_ElectronStack;
+extern __device__ TrackStack d_PhotonStack;
+extern __device__ TrackStack d_ElectronStack;
+
+extern TrackSeq h_TrackSeq;
+extern __device__ TrackSeq d_TrackSeq;
 
 #endif // TrackStack_HH

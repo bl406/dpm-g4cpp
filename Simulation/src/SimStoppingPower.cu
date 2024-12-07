@@ -5,20 +5,30 @@
 #include "Utils.h"
 
 namespace StoppingPower {
-    extern cudaArray_t array;
-    extern cudaTextureObject_t tex;
-    extern __device__ cudaTextureObject_t d_tex;
+    __constant__ float Estep;
+    __constant__ float Emin;
+    __constant__ float Emax;
+    __constant__ int ne;
+
+    __constant__ int nmat;
+    cudaArray_t array;
+    cudaTextureObject_t tex;
+    __device__ cudaTextureObject_t d_tex;
 }
 
 void SimStoppingPower::initializeStoppingPowerTable()
 {
     int ne = 500;
 	float Estep = (float)(fEmax - fEmin) / ne;
-	cudaMemcpyToSymbol(StoppingPower::Emax, &fEmax, sizeof(float));
-	cudaMemcpyToSymbol(StoppingPower::Emin, &fEmin, sizeof(float));
-	cudaMemcpyToSymbol(StoppingPower::ne, &ne, sizeof(int));
-	cudaMemcpyToSymbol(StoppingPower::nmat, &fNumMaterial, sizeof(int));
-	cudaMemcpyToSymbol(StoppingPower::Estep, &Estep, sizeof(float));
+    float aux;
+    cudaMemcpyToSymbol(StoppingPower::ne, &ne, sizeof(int));
+    cudaMemcpyToSymbol(StoppingPower::nmat, &fNumMaterial, sizeof(int));
+    aux = (float)fEmax;
+	cudaMemcpyToSymbol(StoppingPower::Emax, &aux, sizeof(float));
+	aux = (float)fEmin;
+	cudaMemcpyToSymbol(StoppingPower::Emin, &aux, sizeof(float));
+    aux = Estep;
+	cudaMemcpyToSymbol(StoppingPower::Estep, &aux, sizeof(float));
 
     std::vector<float> StoppingPowerTable;
     StoppingPowerTable.resize(ne * fNumMaterial);

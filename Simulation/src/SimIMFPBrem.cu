@@ -5,9 +5,24 @@
 #include "Utils.h"
 
 namespace IMFPBrem {
+    __constant__ float Estep;
+    __constant__ float Emin;
+    __constant__ float Emax;
+    __constant__ int ne;
+    __constant__ int nmat;
+
     cudaArray_t array;
     cudaTextureObject_t tex;
     __device__ cudaTextureObject_t d_tex;
+
+    __device__ float GetIMFPPerDensity(float ekin, int imat) {
+        // check vacuum case i.e. imat = -1
+        if (imat < 0) return 1.0E-20f;
+        // make sure that E_min <= ekin < E_max
+        const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
+        float index = (e - Emin) / Estep;
+        return tex2D<float>(d_tex, index + 0.5f, imat + 0.5f);
+    }
 };
 
 void SimIMFPBrem::initializeIMFPBremTable()
@@ -28,7 +43,7 @@ void SimIMFPBrem::initializeIMFPBremTable()
     table.resize(ne * fNumMaterial);
     for (int i = 0; i < fNumMaterial; i++) {
         for (int j = 0; j < ne; j++) {
-            table[i * ne + j] = GetIMFPPerDensity(double(fEmin + j * Estep), i);
+            table[i * ne + j] = (float)GetIMFPPerDensity(double(fEmin + j * Estep), i);
         }
     }
 

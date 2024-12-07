@@ -5,6 +5,11 @@
 #include "Utils.h"
 
 namespace ITr1MFPElastic{
+    __constant__ float Estep;
+    __constant__ float Emin;
+    __constant__ float Emax;
+    __constant__ int ne;
+
     cudaArray_t array;
     cudaTextureObject_t tex;
     __device__ cudaTextureObject_t d_tex;
@@ -15,18 +20,18 @@ void SimITr1MFPElastic::initializeITr1MFPTable(){
     float Estep = (float)(fEmax - fEmin) / ne;
 	float auxilary;
     cudaMemcpyToSymbol(ITr1MFPElastic::ne, &ne, sizeof(int));
-	auxilary = fEmax;
+	auxilary = (float)fEmax;
     cudaMemcpyToSymbol(ITr1MFPElastic::Emax, &auxilary, sizeof(float));
-	auxilary = fEmin;
+	auxilary = (float)fEmin;
     cudaMemcpyToSymbol(ITr1MFPElastic::Emin, &auxilary, sizeof(float));   
-	auxilary = Estep;
+	auxilary = (float)Estep;
     cudaMemcpyToSymbol(ITr1MFPElastic::Estep, &auxilary, sizeof(float));
 
     std::vector<float> ITr1MFPPerDensityTable;
     ITr1MFPPerDensityTable.resize(ne * fNumMaterial);
     for (int i = 0; i < fNumMaterial; i++) {
         for (int j = 0; j < ne; j++) {
-            ITr1MFPPerDensityTable[i * ne + j] = GetITr1MFPPerDensity(double(fEmin + j * Estep), i);
+            ITr1MFPPerDensityTable[i * ne + j] = (float)GetITr1MFPPerDensity(double(fEmin + j * Estep), i);
         }
     }
 

@@ -33,20 +33,29 @@
 
 #include <vector>
 #include <string>
+#include <cuda_runtime_api.h>
 
+namespace GSTables {
+	extern __constant__ int   SamplingTableSize;
+	extern __constant__ float MinPrimaryEnergy;
+	extern __constant__ float LogMinPrimaryEnergy;
+	extern __constant__ float InvLogDeltaPrimaryEnergy;
+	extern __constant__ float DeltaCum;
+
+	extern cudaArray_t arrVarU;
+	extern cudaArray_t arrParaA;
+	extern cudaArray_t arrParaB;
+	extern cudaArray_t arrTransformParam;
+	extern cudaArray_t arrPrimaryEnergyGrid;
+
+	extern cudaTextureObject_t texVarU, texParaA, texParaB, texTransformParam, texPrimaryEnergyGrid;
+	extern __device__ cudaTextureObject_t d_texVarU, d_texParaA, d_texParaB, d_texTransformParam, d_texPrimaryEnergyGrid;
+
+    extern __device__ float SampleAngularDeflection(float ekin, float rndm1, float rndm2);
+}
 
 class SimGSTables {
-    static int SamplingTableSize;
-	static float MinPrimaryEnergy;
-	static float LogMinPrimaryEnergy;
-	static float InvLogDeltaPrimaryEnergy;
-	static float DeltaCum;
-
-    static std::vector<float> VarUTable;
-    static std::vector<float> ParaATable;
-    static std::vector<float> ParaBTable;
-    static std::vector<float> TransformParamTable;
-    static std::vector<float> PrimaryEnergyGridTable;
+  
 public:
 
   // CTR and DTR
@@ -62,9 +71,7 @@ public:
   // The two additional input arguments are uniformly random values on [0,1].
   //
   // NOTE: it is assumed that the `eprim` electron energy: electron-cut < eprim <E_max
-  static float SampleAngularDeflection(float ekin, float rndm1, float rndm2);
   double SampleAngularDeflection(double ekin, double rndm1, double rndm2);
-
 
 private:
 

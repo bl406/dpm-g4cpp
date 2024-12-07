@@ -7,21 +7,64 @@
 #include "utils.h"
 
 namespace IMFPTotal{
+    __constant__ int NumMaterial;
+    __constant__ float Emin;
+    __constant__ float Emax;
+    __constant__ float InvDelta;
+
     cudaTextureObject_t tex;
     cudaArray_t array;
     __device__ cudaTextureObject_t d_tex;
+
+    __device__ float GetIMFPPerDensity(float ekin, int imat) {
+        // check vacuum case i.e. imat = -1
+        if (imat < 0) return 1.0E-20f;
+        // make sure that E_min <= ekin < E_max
+        const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
+        float index = (e - Emin) * InvDelta;
+        return tex2D<float>(d_tex, index + 0.5f, imat + 0.5f);
+    }
 };
 
 namespace IMFPCompton {
+    __constant__ int NumMaterial;
+    __constant__ float Emin;
+    __constant__ float Emax;
+    __constant__ float InvDelta;
+
+
     cudaTextureObject_t tex;
     cudaArray_t array;
     __device__ cudaTextureObject_t d_tex;
+
+    __device__ float GetIMFPPerDensity(float ekin, int imat) {
+        // check vacuum case i.e. imat = -1
+        if (imat < 0) return 1.0E-20f;
+        // make sure that E_min <= ekin < E_max
+        const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
+        float index = (e - Emin) * InvDelta;
+        return tex2D<float>(d_tex, index + 0.5f, imat + 0.5f);
+    }
 };
 
 namespace IMFPPairProd {
+    __constant__ int NumMaterial;
+    __constant__ float Emin;
+    __constant__ float Emax;
+    __constant__ float InvDelta;
+
     cudaTextureObject_t tex;
     cudaArray_t array;
     __device__ cudaTextureObject_t d_tex;
+
+    __device__ float GetIMFPPerDensity(float ekin, int imat) {
+        // check vacuum case i.e. imat = -1
+        if (imat < 0) return 1.0E-20f;
+        // make sure that E_min <= ekin < E_max
+        const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
+        float index = (e - Emin) * InvDelta;
+        return tex2D<float>(d_tex, index + 0.5f, imat + 0.5f);
+    }
 };
 
 

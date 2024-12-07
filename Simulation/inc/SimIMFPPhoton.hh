@@ -40,14 +40,7 @@ namespace IMFPTotal
     extern __device__ cudaTextureObject_t d_tex;
 
     // the inverse IMFP in [1/mm] [cm3/g] scalled units
-    inline __device__ float GetIMFPPerDensity(float ekin, int imat) {
-        // check vacuum case i.e. imat = -1
-        if (imat < 0) return 1.0E-20f;
-        // make sure that E_min <= ekin < E_max
-        const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
-        float index = (e - Emin) * InvDelta;
-        return tex2D<float>(d_tex, index + 0.5f, imat + 0.5f);
-    }
+    extern __device__ float GetIMFPPerDensity(float ekin, int imat);
 };
 
 namespace IMFPCompton
@@ -62,14 +55,7 @@ namespace IMFPCompton
     extern __device__ cudaTextureObject_t d_tex;
 
     // the inverse IMFP in [1/mm] [cm3/g] scalled units
-    inline __device__ float GetIMFPPerDensity(float ekin, int imat) {
-        // check vacuum case i.e. imat = -1
-        if (imat < 0) return 1.0E-20f;
-        // make sure that E_min <= ekin < E_max
-        const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
-        float index = (e - Emin) * InvDelta;
-        return tex2D<float>(d_tex, index + 0.5f, imat + 0.5f);
-    }
+    extern __device__ float GetIMFPPerDensity(float ekin, int imat);
 };
 
 namespace IMFPPairProd
@@ -84,14 +70,7 @@ namespace IMFPPairProd
     extern __device__ cudaTextureObject_t d_tex;
 
     // the inverse IMFP in [1/mm] [cm3/g] scalled units
-    inline __device__ float GetIMFPPerDensity(float ekin, int imat) {
-        // check vacuum case i.e. imat = -1
-        if (imat < 0) return 1.0E-20f;
-        // make sure that E_min <= ekin < E_max
-        const float e = fmin(Emax - 1.0E-6f, fmax(Emin, ekin));
-        float index = (e - Emin) * InvDelta;
-        return tex2D<float>(d_tex, index + 0.5f, imat + 0.5f);
-    }
+    extern __device__ float GetIMFPPerDensity(float ekin, int imat);
 };
 
 

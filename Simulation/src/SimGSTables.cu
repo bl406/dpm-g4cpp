@@ -6,6 +6,21 @@
 #include "Utils.h"
 
 namespace GSTables {
+   __constant__ int   SamplingTableSize;
+   __constant__ float MinPrimaryEnergy;
+   __constant__ float LogMinPrimaryEnergy;
+   __constant__ float InvLogDeltaPrimaryEnergy;
+   __constant__ float DeltaCum;
+
+   cudaArray_t arrVarU;
+   cudaArray_t arrParaA;
+   cudaArray_t arrParaB;
+   cudaArray_t arrTransformParam;
+   cudaArray_t arrPrimaryEnergyGrid;
+
+   cudaTextureObject_t texVarU, texParaA, texParaB, texTransformParam, texPrimaryEnergyGrid;
+   __device__ cudaTextureObject_t d_texVarU, d_texParaA, d_texParaB, d_texTransformParam, d_texPrimaryEnergyGrid;
+
     __device__ float SampleAngularDeflection(float eprim, float rndm1, float rndm2) {
         // determine electron energy lower grid point and sample if that or one above is used now
         float lpenergy = std::log(eprim);

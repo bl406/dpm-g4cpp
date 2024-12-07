@@ -5,9 +5,18 @@
 #include "Utils.h"  
 
 namespace IMFPMaxPhoton {
+    __constant__ float Emin;
+    __constant__ float Emax;
+    __constant__ float InvDelta;
+
     cudaArray_t array;
     cudaTextureObject_t tex;
     __device__ cudaTextureObject_t d_tex;
+
+    __device__ float GetValue(float xval) {
+        float ilow = (xval - IMFPMaxPhoton::Emin) * IMFPMaxPhoton::InvDelta;
+        return tex1D<float>(d_tex, ilow + 0.5f);
+    }
 }
 
 void SimIMFPMaxPhoton::initializeTable(){
@@ -20,6 +29,7 @@ void SimIMFPMaxPhoton::initializeTable(){
 	cudaMemcpyToSymbol(IMFPMaxPhoton::InvDelta, &aux, sizeof(int));
 
 	std::vector<float> DataY;
+    DataY.resize(fData.GetNumData());
 	for (int i = 0; i < fData.GetNumData(); ++i) {
 		DataY[i] = (float)fData.GetData(i).fY;
 	}
@@ -33,6 +43,8 @@ void SimIMFPMaxPhoton::initializeTable(){
     initCudaTexture(DataY.data(), &NumData, 1, &texDesc, IMFPMaxPhoton::tex, IMFPMaxPhoton::array);
 
 	cudaMemcpyToSymbol(IMFPMaxPhoton::d_tex, &IMFPMaxPhoton::tex, sizeof(cudaTextureObject_t));
+
+    CudaCheckError();
 }
 
 void  SimIMFPMaxPhoton::LoadData(const std::string& dataDir, int verbose) {

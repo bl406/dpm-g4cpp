@@ -65,8 +65,8 @@ namespace Geometry {
     extern __constant__ float LBox;
     extern __constant__ float InvLBox;
     extern __constant__ float LHalfBox;
-    extern __constant__ float Tolerance = 1.0E-4f;;
-    extern __constant__ float Extent = 100.f;
+    extern __constant__ float Tolerance;
+    extern __constant__ float Extent;
     extern __constant__ int PreDefinedGeomIndex;
 
     extern __constant__ float ElectronCut;
@@ -77,35 +77,17 @@ namespace Geometry {
 	extern float* StepHist;
     extern __device__ float* d_StepHist;
 
-	// Computes the distance to the volume boundary from the given `rLocation`
-	// location along the given `vDirection` direction. When the input `rLocation`
-	// is within `0.5*kTolerance` from a volume boundary, then it first updated by
-	// moving the point to the next voxel then the distance to the boundary is
-	// computed in this new volume. The `iVoxel` voxel index triplet is always set
-	// as well.
 	__device__  float DistanceToBoundary(float* rLocation, float* dDirection, int* iVoxel);
 
-    // Returns with the material index based on the input `iVoxel` voxel index
-    // triplet.
-    //
-    // NOTE: it is assumed now (only for the sake of simplicity) that each voxel
-    //       is built up from a single material, i.e. no material mixing. However,
-    //       the simulation do not make any use of this assumption. Therefore,
-    //       by changing `GetMaterialIndex` such that it returns the index of the
-    //       main material of the voxel while the `GetVoxelMaterialDensity` returns
-    //       whatever fractional density values (in [g/cm3]) won't require any change
-    //       in the simulation part.
     __device__  int    GetMaterialIndex(int* iVoxel);
 
-    // Returns with the material density of the voxel specified by its `iVoxel`
-    // voxel index triplet input ragument.
-    inline __device__ float GetVoxelMaterialDensity(int* iVoxel);/* {
+    inline __device__ float GetVoxelMaterialDensity(int* iVoxel) {
         const int imat = GetMaterialIndex(iVoxel);
         return imat > -1 ? tex1D<float>(d_texDensity, imat) : 1.0E-40f;
-    }*/
-    inline __device__ float GetVoxelMaterialDensity(int imat);/* {
+    }
+    inline __device__ float GetVoxelMaterialDensity(int imat) {
         return imat > -1 ? tex1D<float>(d_texDensity, imat) : 1.0E-40f;
-    }*/
+    }
 
 	inline __device__ float GetVoxelMollerIMFPScaling(int imat) {
 		return imat > -1 ? tex1D<float>(d_texMollerIMFPScaling, imat) : 1.0E-40f;
@@ -159,10 +141,13 @@ public:
   // writes the histograms into the `fname` file
   void   Write(const std::string& fname, int nprimaries);
 
+  // energy deposit and step number histograms: along the depth (i.e. along +z)
+  std::vector<float>  fEdepHist;
+  std::vector<float>  fStepHist;
+
+  void Initialize();
 private:
-
-    void Initialize();
-
+   
   // tolerance of the boundary computation [mm]
   const float         kTolerance = 1.0E-4f;
   // maximum extent of the geometry (except in the -z direction) in  [mm]
@@ -179,11 +164,6 @@ private:
   // poiner to the material data object set at construction (used only for the
   // material density in [g/cm3] in `GetVoxelMaterialDensity`).
   SimMaterialData*     fMaterialData;
-
-  // energy deposit and step number histograms: along the depth (i.e. along +z)
-  std::vector<float>  fEdepHist;
-  std::vector<float>  fStepHist;
-
 };
 
 #endif //Geom_HH
