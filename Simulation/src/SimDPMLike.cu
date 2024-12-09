@@ -25,6 +25,8 @@
 #include "error_checking.h"
 #include "Utils.h"
 
+#define DEBUG_LOG
+
 __global__ void Simulate_kernel()
 {
 	int tid = threadIdx.x + blockIdx.x * blockDim.x;
@@ -112,6 +114,10 @@ __global__ void Simulate_kernel()
 		//     secondary e- production threshold (end of this history)
 		// c.  the e- leaves the geometry, i.e. goes into vacuum (its energy set to 0 so return with 4)
 		int whatHappend = KeepTrackingElectron(track, numTr1MFP, numMollerMFP, invMollerMFP, numBremMFP);
+#ifdef DEBUG_LOG
+        printf("whatHapped=%d track.fPostion=[%f %f %f] track.fTrackLength=%f\n", 
+            whatHappend, track.fPosition[0], track.fPosition[1], track.fPosition[2], track.fTrackLength);
+#endif
 		//
 		theVoxelMatIndx = track.fMatIndx;
 		// terminate if the tarck is in vacuum (its energy has been set to zero)
@@ -201,7 +207,8 @@ __global__ void Simulate_kernel()
 
 void Simulate(int nprimary, const Source* source)
 {
-    int nbatch = 10;
+    //int nbatch = 10;
+    int nbatch = 1;
     if (nprimary / nbatch == 0) {
         nprimary = nbatch;
     }
@@ -213,7 +220,8 @@ void Simulate(int nprimary, const Source* source)
     nprimary = nperbatch * nbatch;
 
     //int seq_size = 65536;
-    int seq_size = 5120;
+    //int seq_size = 5120;
+    int seq_size = nprimary;
 	int stack_size = seq_size * 16;
     int nblocks = divUp(seq_size, THREADS_PER_BLOCK);
 
@@ -270,7 +278,7 @@ void Simulate(int nprimary, const Source* source)
             cudaMemcpyToSymbol(d_PhotonStack, &h_PhotonStack, sizeof(TrackStack));
             cudaMemcpyToSymbol(d_ElectronStack, &h_ElectronStack, sizeof(TrackStack));
             CudaCheckError();
-            Simulate_kernel << <nblocks, THREADS_PER_BLOCK >> > ();
+            Simulate_kernel << <nblocks, THREADS_PER_BLOCK >> > ();            
             CudaCheckError();            
             h_TrackSeq.fSize = 0;
             cudaMemcpyFromSymbol(&h_PhotonStack, d_PhotonStack, sizeof(TrackStack));
@@ -760,9 +768,9 @@ __device__ void PerformMoller(Track& track) {
 
 __device__ void PerformMSCAngularDeflection(Track& track, float ekin0) {
   const float kPI  = 3.1415926535897932f;
-  const float dum0 = GSTables::SampleAngularDeflection( ekin0,
-                                                            CuRand::rand(),
-                                                            CuRand::rand());
+  float rnd1 = CuRand::rand();
+  float rnd2 = CuRand::rand();
+  const float dum0 = GSTables::SampleAngularDeflection( ekin0, rnd2, rnd1); // For comparision with the CPU version.
   const float cost = fmax(-1.0f, fmin(1.0f, dum0));
   const float sint = std::sqrt((1.0-cost)*(1.0f+cost));
   // smaple \phi: uniform in [0,2Pi] <== spherical symmetry of the scattering potential

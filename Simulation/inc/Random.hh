@@ -18,10 +18,7 @@ public:
 };
 
 namespace CuRand {
-	extern __device__ curandState* d_states;
-	
 	extern void initCurand(int blocks, int threads);
-
 	/* 获得一个在[0, 1)区间内均匀分布的float型变量 */
 	__device__ extern float rand();
 }
