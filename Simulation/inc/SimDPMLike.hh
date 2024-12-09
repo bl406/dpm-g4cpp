@@ -29,6 +29,7 @@ class SimMollerTables;
 class SimGSTables;
 
 class Track;
+class Source;
 
 //
 // The top level function that performs the complete simulation of `nprimary`
@@ -43,8 +44,7 @@ class Track;
 // The resulted depth dose histogram of the simulation is written into the `hist.sim`
 // file at the termination of the simulation.
 //
-void  Simulate(int nprimary, float eprimary, bool iselectron, float lbox, 
-	SimMaterialData& matData, SimElectronData& elData, SimPhotonData& phData, int geomIndex, std::string filename);
+void  Simulate(int nprimary, const Source* source, float lbox, SimMaterialData& matData, Geom& geom);
 
 
 
@@ -63,7 +63,7 @@ int   KeepTrackingElectron(SimMaterialData& matData, Geom& geom, Track& track,
 // 3. Photoelectric absoprtion take place
 // Unlike in case of electrons, this function also performs the interactions
 // themself since the photon interactions are very simple in a DPM like simulation
-void   KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& geom, Track& track);
+void   KeepTrackingPhoton(SimMaterialData& matData, Geom& geom, Track& track);
 
 //
 // A set of utility methods:
@@ -80,9 +80,9 @@ void   RotateToLabFrame(float&u, float&v, float&w, float u1, float u2, float u3)
 void   RotateToLabFrame(float* dir, float* refdir);
 
 // Auxiliary funtion for bremsstrahlung final state generation.
-void   PerformBrem(Track& track, SimSBTables* theSBTable);
+void   PerformBrem(Track& track);
 // Auxiliary funtion for ionisation (Moller) final state generation.
-void   PerformMoller(Track& track, SimMollerTables* theMollerTable);
+void   PerformMoller(Track& track);
 // Auxiliary funtion to perform angular delfection due to MSC.
 // NOTE: that angular deflection is applied beween the pre- and post-step point
 //       while it needs to be computed at the e- energy at the pre-step point.

@@ -36,119 +36,82 @@
 
 #include <cstdio>
 
+//#define DEBUG_LOG
 
-void   Simulate(int nprimary, float eprimary, bool iselectron, float lbox, 
-    SimMaterialData& matData, SimElectronData& elData, SimPhotonData& phData, int geomIndex, std::string filename) {
-  // create the simple geometry
-  Geom geom(lbox, &matData, geomIndex);
-  //
-  const float theElectronCut = matData.fElectronCut;
-  const float theGammaCut    = matData.fGammaCut;
+void   Simulate_kernel(Geom& geom, float theElectronCut, float theGammaCut, SimMaterialData& matData) {
+    for (int i = 0; i < h_TrackSeq.size(); ++i)
+    {
+        Track& track = h_TrackSeq.fData[i];
 
-  //
-  // `theRZ0` such that the particle hits the first voxel/box with `iz` index of 0
-  // from the left (i.e. --> |0|1|...)
-  // NOTE: it will be located inside the box with z-index of 0 when `DistanceToBoundary`
-  //       will be called since theRZ0 is within (half) tolerance outside.
-  const float theRZ0 = -0.5f*lbox;
-  //
-  // simulate `nprimary` histories: prite some infomation reagrding the progress
-  const int kFraction = nprimary/10;
-  std::cout << "\n === Start simulation of N = " << nprimary << " events === \n" << std::endl;
-  for (int iPrimary=0; iPrimary<nprimary; ++iPrimary) {
-    if (iPrimary%kFraction==0) {
-      std::cout << " == Starting Primary = " << iPrimary << std::endl;
-    }
-    //
-    // insert a track into the global track-stack with the properties of the primary
-    // (note, that the Track is Reset() inside before we get back a refernce to that)
-    Track& aPrimaryTrack = TrackStack::Instance().Insert();
-    // set the primary kinetic energy (position, direcion, type etc is fine)
-    aPrimaryTrack.fEkin         = eprimary;             // Primary kinetic energy in [MeV]
-    aPrimaryTrack.fType         = iselectron ? -1 : 0 ; // e-(-1) or photon(0)
-    //
-    aPrimaryTrack.fDirection[0] = 0.0f;                  // initial direction is [0,0,1]
-    aPrimaryTrack.fDirection[1] = 0.0f;
-    aPrimaryTrack.fDirection[2] = 1.0f;
-    //
-    aPrimaryTrack.fPosition[0] = 0.0f;                   // initial position is [0,0, theRZ0]
-    aPrimaryTrack.fPosition[1] = 0.0f;
-    aPrimaryTrack.fPosition[2] = theRZ0;
-    //
-    // While the stack becomes empty: pop the next track (secondary except the very firts case)
-    // and keep tracking till its kinetic energy becomes zero.
-    // NOTE: the stack might be populated with secondary tracks while keepd tracking a given track
-    Track track; // this is the current Track that is under tracking
-    while (-1 < TrackStack::Instance().PopIntoThisTrack(track)) {
-          // compute the distance to the boundary
-          // (This also sets the box indices so the material index can be obtained)
-          // init the step length to this distance to boundary
-//          float step =
-          geom.DistanceToBoundary(track.fPosition, track.fDirection, track.fBoxIndx);
-          // get the current material index: i.e. the base material of the voxel
-          // NOTE: vacuum is indicated by the special voxel material index of -1
-          //       Stop tracking if the track is in a voxel filled with vacuum.
-          int theVoxelMatIndx = geom.GetMaterialIndex(track.fBoxIndx);
-          if (theVoxelMatIndx<0) {
+        // compute the distance to the boundary
+             // (This also sets the box indices so the material index can be obtained)
+             // init the step length to this distance to boundary
+     //          float step =
+        geom.DistanceToBoundary(track.fPosition, track.fDirection, track.fBoxIndx);
+        // get the current material index: i.e. the base material of the voxel
+        // NOTE: vacuum is indicated by the special voxel material index of -1
+        //       Stop tracking if the track is in a voxel filled with vacuum.
+        int theVoxelMatIndx = geom.GetMaterialIndex(track.fBoxIndx);
+        if (theVoxelMatIndx < 0) {
             continue;
-          }
-          // set the material index otherwise
-          track.fMatIndx      = theVoxelMatIndx;
-          // Use the dedicated tracking for photons if we have one in hand now:
-          if (track.fType == 0) {
-            KeepTrackingPhoton(phData, matData, geom, track);
+        }
+        // set the material index otherwise
+        track.fMatIndx = theVoxelMatIndx;
+        // Use the dedicated tracking for photons if we have one in hand now:
+        if (track.fType == 0) {
+            KeepTrackingPhoton(matData, geom, track);
             continue;
-          }
-          //
-          // Track e-/e+ ortherwise:
-          //
-          // WE ASSUME HERE NOW THAT EACH VOXEL IS A CLEAR MATERIAL SO WE WILL
-          // USE theVoxelMaterialDensity = theVoxelBaseMaterialDensity. HOWEVER,
-          // THIS MIGH BE CHANGED ANYTIME WHEN THE GEOMETRY CAN PROVIDE A SUITABLE
-          // VOXEL MATERIAL DENSITY.
-          //
-          // NOTE: density must be in g/cm3 units. (cannot be vacuum at this point)
-          float theVoxelMatDensity = geom.GetVoxelMaterialDensity(theVoxelMatIndx);
-          //
-          // this will be used to alter between an hinge and remaining sub MSC-step
-          bool   isMSCHinge    = true;
-          // this will be used to keep track of the pre-step point energy that we need
-          // when we reach the msc hinge point (init. is not important cause will be set below)
-          float theEkin0      = track.fEkin;
-          //
-          //
-          // Compute the initial number of mfp left till the different interactions
-          // which is -ln(R) = s/mfp or U(R) = s/tr1-mfp for the MSC hinge interaction:
-          //
-          // 1. elastic interaction with msc: s/tr1mfp and sample the hinge position as well
-          //    NOTE: data are used for the reference material and not scalled by the density
-          //          so numTr1MFP ~ s_max(E)/tr1-mfp(E) [no units]
-          float numTr1MFP    = SimMaxScatStrength::GetMaxScatStrength(track.fEkin);
-          // travell this #tr1-mfp after the MSC-hinge took place
-          float numTr1MFP0   = Random::UniformRand()*numTr1MFP;
-          // travel this #tr1-mfp till the MSC-hinge
-          numTr1MFP          -= numTr1MFP0;
-          //
-          // 2. Moller:
-          // NOTE: as in DPM, the mfp for Moller will be assumed to have no energy dependence!!!
-          //       So the update of the number-of-mfp-left will contain only the material
-          //       dependence related scaling (that's again approximate but DPM does this).
-          //       This material dependent update(scaling) relies on the \lam ~ [A/(Z\rho)]
-          //       dependence: \lam' = \lam_ref(E') [Z\rho/A]_ref [A/(Z\rho)]_actual (such
-          //       that in case of Moller (in DPM) even E'=E_0 in each step as dicussed above).
-          float numMollerMFP = -std::log(Random::UniformRand());
-          // again, the reference material Moller IMFP value is used
-          float invMollerMFP = SimIMFPMoller::GetIMFPPerDensity(track.fEkin);
-          //
-          // 3. bremsstrahlung:
-          // NOTE: IMFP for bremsstrahlung is important so it's interpolated by using values for
-          //       the actual material and kinetic energy in the `KeepTracking` code. Here we
-          //       sample a `number-of-interaction-left` value, i.e. -ln(R) only (=s/imfp(E,mat))
-          float numBremMFP = -std::log(Random::UniformRand());
-          //
-          // Start and keep tracking this e- or e+ track while its stopped, i.e. its energy becomes
-          // zero or goes away (in vacuum)
-          while (track.fEkin > 0.0) {
+        }
+        //
+        // Track e-/e+ ortherwise:
+        //
+        // WE ASSUME HERE NOW THAT EACH VOXEL IS A CLEAR MATERIAL SO WE WILL
+        // USE theVoxelMaterialDensity = theVoxelBaseMaterialDensity. HOWEVER,
+        // THIS MIGH BE CHANGED ANYTIME WHEN THE GEOMETRY CAN PROVIDE A SUITABLE
+        // VOXEL MATERIAL DENSITY.
+        //
+        // NOTE: density must be in g/cm3 units. (cannot be vacuum at this point)
+        float theVoxelMatDensity = geom.GetVoxelMaterialDensity(theVoxelMatIndx);
+        //
+        // this will be used to alter between an hinge and remaining sub MSC-step
+        bool   isMSCHinge = true;
+        // this will be used to keep track of the pre-step point energy that we need
+        // when we reach the msc hinge point (init. is not important cause will be set below)
+        float theEkin0 = track.fEkin;
+        //
+        //
+        // Compute the initial number of mfp left till the different interactions
+        // which is -ln(R) = s/mfp or U(R) = s/tr1-mfp for the MSC hinge interaction:
+        //
+        // 1. elastic interaction with msc: s/tr1mfp and sample the hinge position as well
+        //    NOTE: data are used for the reference material and not scalled by the density
+        //          so numTr1MFP ~ s_max(E)/tr1-mfp(E) [no units]
+        float numTr1MFP = SimMaxScatStrength::GetMaxScatStrength(track.fEkin);
+        // travell this #tr1-mfp after the MSC-hinge took place
+        float numTr1MFP0 = Random::UniformRand() * numTr1MFP;
+        // travel this #tr1-mfp till the MSC-hinge
+        numTr1MFP -= numTr1MFP0;
+        //
+        // 2. Moller:
+        // NOTE: as in DPM, the mfp for Moller will be assumed to have no energy dependence!!!
+        //       So the update of the number-of-mfp-left will contain only the material
+        //       dependence related scaling (that's again approximate but DPM does this).
+        //       This material dependent update(scaling) relies on the \lam ~ [A/(Z\rho)]
+        //       dependence: \lam' = \lam_ref(E') [Z\rho/A]_ref [A/(Z\rho)]_actual (such
+        //       that in case of Moller (in DPM) even E'=E_0 in each step as dicussed above).
+        float numMollerMFP = -std::log(Random::UniformRand());
+        // again, the reference material Moller IMFP value is used
+        float invMollerMFP = SimIMFPMoller::GetIMFPPerDensity(track.fEkin);
+        //
+        // 3. bremsstrahlung:
+        // NOTE: IMFP for bremsstrahlung is important so it's interpolated by using values for
+        //       the actual material and kinetic energy in the `KeepTracking` code. Here we
+        //       sample a `number-of-interaction-left` value, i.e. -ln(R) only (=s/imfp(E,mat))
+        float numBremMFP = -std::log(Random::UniformRand());
+        //
+        // Start and keep tracking this e- or e+ track while its stopped, i.e. its energy becomes
+        // zero or goes away (in vacuum)
+        while (track.fEkin > 0.0) {
             //
             // Now we can keep tracking this e- (even trhough boxes with different materials),
             // by decreasing these 3 above initial number-of-mfp/tr1-mfp-left at each step by the
@@ -160,95 +123,161 @@ void   Simulate(int nprimary, float eprimary, bool iselectron, float lbox,
             //     secondary e- production threshold (end of this history)
             // c.  the e- leaves the geometry, i.e. goes into vacuum (its energy set to 0 so return with 4)
             int whatHappend = KeepTrackingElectron(matData, geom, track, numTr1MFP, numMollerMFP, invMollerMFP, numBremMFP);
+#ifdef DEBUG_LOG
+            printf("whatHapped=%d track.fPostion=[%f %f %f] track.fTrackLength=%f\n",
+                whatHappend, track.fPosition[0], track.fPosition[1], track.fPosition[2], track.fTrackLength);
+#endif
             //
             theVoxelMatIndx = track.fMatIndx;
             // terminate if the tarck is in vacuum (its energy has been set to zero)
-            if (theVoxelMatIndx<0) {
-              continue;
+            if (theVoxelMatIndx < 0) {
+                continue;
             }
             theVoxelMatDensity = geom.GetVoxelMaterialDensity(theVoxelMatIndx);
             switch (whatHappend) {
-              // (1) discrete bremsstrahlung interaction should be sampled:
-              //     - sample energy transfer to the photon (if any)
-              case 1 : {
-                         // perform bremsstrahlung interaction but only if E0 > gcut
-                         if (track.fEkin > theGammaCut) {
-                           PerformBrem(track, elData.GetTheSBTables());
-                         }
-                         // check if the post-interaction electron energy dropped
-                         // below the tracking cut and stop tracking if yes
-                         if (track.fEkin < theElectronCut) {
-                           // deposit the whole energy and stop tracking
-                           geom.Score(track.fEkin, track.fBoxIndx[2]);
-                           track.fEkin = 0.0;
-                           // perform annihilation in case of e+
-                           if (track.fType == +1) {
-                             PerformAnnihilation(track);
-                           }
-                           break;
-                         }
-                         // if the primary electron (or e+) survived, i.e. if we are here
-                         // then, re-sample the #mfp to travel till the next brem event
-                         // and break
-                         numBremMFP = -std::log(Random::UniformRand());
-                         break;
-                       }
-              // (2) discrete Moller interaction is sampled:
-              // NOTE: no energy dependence is considered in case of Moller in DPM so
-              //       the numMollerMFP is evaluated only at this point and assumed to be
-              //       constant along the entire `KeepTracking` part (only material scaling is applied).
-              //       Furthermore, the kinetic energies of both the post interaction priary
-              //       and seconday electrons are guarantied to be above the secondary electron
-              //       production threshold so no need to check if their energy droppe below after
-              //       the interaction
-              //       Furthermore, note that Moller interaction is independent from Z
-              case 2 : {
-                          // perform ionisation (Moller) intraction but only if E0 > 2cut
-                          if (track.fEkin > 2.*theElectronCut) {
-                            PerformMoller(track, elData.GetTheMollerTables());
-                          }
-                         // Resample #mfp left and interpolate the IMFP since the enrgy has been changed.
-                         // Again, the reference material Moller IMFP value is used
-                         numMollerMFP = -std::log(Random::UniformRand());
-                         invMollerMFP = SimIMFPMoller::GetIMFPPerDensity(track.fEkin);
-                         break;
-                       }
-              // (3) msc interaction happend: either hinge or just or end of an MSC step
-              case 3 : {
-                         if (isMSCHinge) {
-                           // Sample angular deflection from GS distr. and apply it
-                           // -----------------------------------------------------
-                           PerformMSCAngularDeflection(track, theEkin0);
-                           // -----------------------------------------------------
-                           // set the #tr1-mfp left to the remaining, i.e. after hinge part
-                           numTr1MFP   = numTr1MFP0;
-                           // the end point is the next msc stop and not the hinge
-                           isMSCHinge = false;
-                         }  else {
-                           // end point so resample #tr1-mfp left and the hinge point
-                           theEkin0   = track.fEkin;
-                           // again, the reference material K_1(E) is used
-                           numTr1MFP  = SimMaxScatStrength::GetMaxScatStrength(theEkin0);
-                           // travell this #tr1-mfp after the MSC-hinge took place
-                           numTr1MFP0 = Random::UniformRand()*numTr1MFP;
-                           // travell this #tr1-mfp till the MSC-hinge
-                           numTr1MFP -= numTr1MFP0;
-                           // hinge will be the next msc stop
-                           isMSCHinge = true;
-                         }
-                         break;
-                      }
-              // (4) the kinetic energy dropped below the tracking cut so the particle is stopped
-              case 4 :  // nothng to do now: track.fEkin should be zero et this point so the
-                        // "traking" while loop should be terminated after this `break`
-                        break;
+                // (1) discrete bremsstrahlung interaction should be sampled:
+                //     - sample energy transfer to the photon (if any)
+            case 1: {
+                // perform bremsstrahlung interaction but only if E0 > gcut
+                if (track.fEkin > theGammaCut) {
+                    PerformBrem(track);
+                }
+                // check if the post-interaction electron energy dropped
+                // below the tracking cut and stop tracking if yes
+                if (track.fEkin < theElectronCut) {
+                    // deposit the whole energy and stop tracking
+                    geom.Score(track.fEkin, track.fBoxIndx[2]);
+                    track.fEkin = 0.0;
+                    // perform annihilation in case of e+
+                    if (track.fType == +1) {
+                        PerformAnnihilation(track);
+                    }
+                    break;
+                }
+                // if the primary electron (or e+) survived, i.e. if we are here
+                // then, re-sample the #mfp to travel till the next brem event
+                // and break
+                numBremMFP = -std::log(Random::UniformRand());
+                break;
             }
-          } // end of tracking while loop
-    } // end of this history (i.e. end of tracking even the last primary track from this history)
-  } // end of tracking all the primaries (i.e. end of tracking the last primary with all its secondaries)
-  std::cout << "\n === End simulation of N = " << nprimary << " events === \n" << std::endl;
-  // write histograms
-  geom.Write(filename, nprimary);
+                  // (2) discrete Moller interaction is sampled:
+                  // NOTE: no energy dependence is considered in case of Moller in DPM so
+                  //       the numMollerMFP is evaluated only at this point and assumed to be
+                  //       constant along the entire `KeepTracking` part (only material scaling is applied).
+                  //       Furthermore, the kinetic energies of both the post interaction priary
+                  //       and seconday electrons are guarantied to be above the secondary electron
+                  //       production threshold so no need to check if their energy droppe below after
+                  //       the interaction
+                  //       Furthermore, note that Moller interaction is independent from Z
+            case 2: {
+                // perform ionisation (Moller) intraction but only if E0 > 2cut
+                if (track.fEkin > 2. * theElectronCut) {
+                    PerformMoller(track);
+                }
+                // Resample #mfp left and interpolate the IMFP since the enrgy has been changed.
+                // Again, the reference material Moller IMFP value is used
+                numMollerMFP = -std::log(Random::UniformRand());
+                invMollerMFP = SimIMFPMoller::GetIMFPPerDensity(track.fEkin);
+                break;
+            }
+                  // (3) msc interaction happend: either hinge or just or end of an MSC step
+            case 3: {
+                if (isMSCHinge) {
+                    // Sample angular deflection from GS distr. and apply it
+                    // -----------------------------------------------------
+                    PerformMSCAngularDeflection(track, theEkin0);
+                    // -----------------------------------------------------
+                    // set the #tr1-mfp left to the remaining, i.e. after hinge part
+                    numTr1MFP = numTr1MFP0;
+                    // the end point is the next msc stop and not the hinge
+                    isMSCHinge = false;
+                }
+                else {
+                    // end point so resample #tr1-mfp left and the hinge point
+                    theEkin0 = track.fEkin;
+                    // again, the reference material K_1(E) is used
+                    numTr1MFP = SimMaxScatStrength::GetMaxScatStrength(theEkin0);
+                    // travell this #tr1-mfp after the MSC-hinge took place
+                    numTr1MFP0 = Random::UniformRand() * numTr1MFP;
+                    // travell this #tr1-mfp till the MSC-hinge
+                    numTr1MFP -= numTr1MFP0;
+                    // hinge will be the next msc stop
+                    isMSCHinge = true;
+                }
+                break;
+            }
+                  // (4) the kinetic energy dropped below the tracking cut so the particle is stopped
+            case 4:  // nothng to do now: track.fEkin should be zero et this point so the
+                // "traking" while loop should be terminated after this `break`
+                break;
+            }
+        } // end of tracking while loop
+    }    
+}
+
+
+void   Simulate(int nprimary, const Source* source, float lbox, SimMaterialData& matData, Geom& geom) {
+  //
+  const float theElectronCut = matData.fElectronCut;
+  const float theGammaCut    = matData.fGammaCut;
+
+  int nbatch = 10;
+  int nperbatch = nprimary / nbatch;
+
+  int seq_size = 65536;
+  int stack_size = seq_size * 16;
+
+  h_PhotonStack.init(stack_size);
+  h_ElectronStack.init(stack_size);
+  h_TrackSeq.init(seq_size);
+
+  for (int ibatch = 0; ibatch < nbatch; ++ibatch) {
+      int nSimulatedPri = 0;
+
+      while (1) {
+          if (nSimulatedPri >= nperbatch) {
+              if (!h_PhotonStack.empty() || !h_ElectronStack.empty()) {
+                  if (h_PhotonStack.size() >= seq_size) {
+                      h_TrackSeq.add_secondary(&h_PhotonStack);
+                  }
+                  else if (h_ElectronStack.size() >= seq_size) {
+                      h_TrackSeq.add_secondary(&h_ElectronStack);
+                  }
+                  else {
+                      if (h_PhotonStack.size() + h_ElectronStack.size() < h_TrackSeq.fCapacity) {
+                          h_TrackSeq.add_secondary(&h_PhotonStack);
+                          h_TrackSeq.add_secondary(&h_ElectronStack);
+                      }
+                      else if (h_PhotonStack.size() > 0) {
+                          h_TrackSeq.add_secondary(&h_PhotonStack);
+                      }
+                      else if (h_ElectronStack.size() > 0) {
+                          h_TrackSeq.add_secondary(&h_ElectronStack);
+                      }
+                  }
+              }
+              else {
+                  break;
+              }
+          }
+          else {
+              if (h_PhotonStack.size() >= seq_size) {
+                  h_TrackSeq.add_secondary(&h_PhotonStack);
+              }
+              else if (h_ElectronStack.size() >= seq_size) {
+                  h_TrackSeq.add_secondary(&h_ElectronStack);
+              }
+              else {
+                  h_TrackSeq.add_n_primary(seq_size, source);
+                  nSimulatedPri += h_TrackSeq.fSize;
+              }
+          }
+      
+          Simulate_kernel(geom, theElectronCut, theGammaCut, matData);
+          h_TrackSeq.fSize = 0;
+      }
+      std::cout << "\n === End simulation of N = " << (ibatch + 1) * nperbatch << " events === \n" << std::endl;
+  }
 }
 
 
@@ -461,7 +490,7 @@ int KeepTrackingElectron(SimMaterialData& matData, Geom& geom, Track& track, flo
 }
 
 
-void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& geom, Track& track) {
+void KeepTrackingPhoton(SimMaterialData& matData, Geom& geom, Track& track) {
   const float kPI      = 3.1415926535897932f;
   const float kEMC2    = 0.510991f;
   const float kInvEMC2 = 1.0f/kEMC2;
@@ -530,7 +559,7 @@ void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& g
         const float e0 = track.fEkin*kInvEMC2;
         float elCost   = (1.0f+e0)*std::sqrt((1.0f-theEps)/(e0*(2.0f+e0*(1.0f-theEps))));
         //
-        Track& aTrack        = TrackStack::Instance().Insert();
+        Track& aTrack = h_ElectronStack.push_one();
         aTrack.fType         = -1;
         aTrack.fEkin         = elEner;
         aTrack.fMatIndx      = track.fMatIndx;
@@ -588,7 +617,7 @@ void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& g
         geom.Score(e2, track.fBoxIndx[2]);
         //geom.Score(e2, track.fPosition[2]);
       } else {
-        Track& aTrack        = TrackStack::Instance().Insert();
+          Track& aTrack = h_ElectronStack.push_one();
         aTrack.fType         = -1;
         aTrack.fEkin         = e2;
         aTrack.fMatIndx      = track.fMatIndx;
@@ -608,7 +637,7 @@ void KeepTrackingPhoton(SimPhotonData& phData, SimMaterialData& matData, Geom& g
         //geom.Score(e1, track.fPosition[2]);
         PerformAnnihilation(track);
       } else {
-        Track& aTrack        = TrackStack::Instance().Insert();
+        Track& aTrack        = h_ElectronStack.push_one();
         aTrack.fType         = +1;
         aTrack.fEkin         = e1;
         aTrack.fMatIndx      = track.fMatIndx;
@@ -659,18 +688,18 @@ void RotateToLabFrame(float* dir, float* refdir) {
 
 // It is assumed that track.fEkin > gamma-cut!
 // (Interaction is not possible otherwise)
-void PerformBrem(Track& track, SimSBTables* theSBTable) {
+void PerformBrem(Track& track) {
   const float kPI            = 3.1415926535897932f;
   const float kEMC2          = 0.510991f;
   const float kHalfSqrt2EMC2 = kEMC2 * 0.7071067812f;
   // sample energy transferred to the emitted gamma photon
-  const float eGamma = theSBTable->SampleEnergyTransfer(track.fEkin,
+  const float eGamma = SimSBTables::SampleEnergyTransfer(track.fEkin,
                                                          track.fMatIndx,
                                                          Random::UniformRand(),
                                                          Random::UniformRand(),
                                                         Random::UniformRand());
  // insert the secondary gamma track into the stack
- Track& aTrack        = TrackStack::Instance().Insert();
+  Track& aTrack = h_PhotonStack.push_one();
  aTrack.fType         = 0;
  aTrack.fEkin         = eGamma;
  aTrack.fMatIndx      = track.fMatIndx;
@@ -697,18 +726,18 @@ void PerformBrem(Track& track, SimSBTables* theSBTable) {
 
 // It is assumed that track.fEkin > 2*electron-cut!
 // (Interaction is not possible otherwise)
-void PerformMoller(Track& track, SimMollerTables* theMollerTable) {
+void PerformMoller(Track& track) {
   const float kPI     = 3.1415926535897932f;
   const float kEMC2   = 0.510991f;
   const float k2EMC2  = 2.0f*kEMC2;
-  const float secEkin = theMollerTable->SampleEnergyTransfer( track.fEkin,
+  const float secEkin = SimMollerTables::SampleEnergyTransfer( track.fEkin,
                                                                Random::UniformRand(),
                                                                Random::UniformRand(),
                                                                Random::UniformRand());
   const float cost    = std::sqrt(secEkin*(track.fEkin+k2EMC2)/(track.fEkin*(secEkin+k2EMC2)));
   const float secCost = std::min(1.0f, cost);
   // insert the secondary e- track into the stack
-  Track& aTrack        = TrackStack::Instance().Insert();
+  Track& aTrack = h_ElectronStack.push_one();
   aTrack.fType         = -1;
   aTrack.fEkin         = secEkin;
   aTrack.fMatIndx      = track.fMatIndx;
@@ -762,7 +791,7 @@ void PerformAnnihilation(Track& track) {
   const float ry   = sint*sin(phi);
   const float rz   = cost;
 
-  Track& aTrack        = TrackStack::Instance().Insert();
+  Track& aTrack        = h_PhotonStack.push_one();
   aTrack.fType         = 0;
   aTrack.fEkin         = kEMC2;
   aTrack.fMatIndx      = track.fMatIndx;
@@ -776,7 +805,7 @@ void PerformAnnihilation(Track& track) {
   aTrack.fDirection[1] = ry;
   aTrack.fDirection[2] = rz;
 
-  Track& aTrack1        = TrackStack::Instance().Insert();
+  Track& aTrack1 = h_PhotonStack.push_one();
   aTrack1.fType         = 0;
   aTrack1.fEkin         = kEMC2;
   aTrack1.fMatIndx      = track.fMatIndx;

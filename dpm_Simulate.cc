@@ -12,6 +12,8 @@
 #include <string>
 
 #include <getopt.h>
+#include "Source.hh"
+#include "Geom.hh"
 
 //
 // M. Novak: 2021
@@ -76,10 +78,29 @@ int main(int argc, char *argv[]) {
   // - configuration and material related data
   SimMaterialData theSimMaterialData;
   theSimMaterialData.Load(gInputDataDir);
+
+  bool isElectron = (gPrimaryParticle == "e-");
+  SimpleSource theSource(gPrimaryEnergy, isElectron, gVoxelSize);
+
+  // create the simple geometry
+  Geom geom(gVoxelSize, &theSimMaterialData, theConfig.fGeomIndex);
+
+  int nbatch = 10;
+  if (gNumPrimaries / nbatch == 0) {
+      gNumPrimaries = nbatch;
+  }
+  // nhist对nperbatch向上取整
+  int nperbatch = gNumPrimaries / nbatch;
+  if (gNumPrimaries % nperbatch != 0) {
+      nbatch++;
+  }
+  gNumPrimaries = nperbatch * nbatch;
+
   //
   // Execute the simulation according to the iput arguments
-  bool isElectron = (gPrimaryParticle=="e-");
-  Simulate(gNumPrimaries, gPrimaryEnergy, isElectron, gVoxelSize, theSimMaterialData, theSimElectronData, theSimPhotonData, theConfig.fGeomIndex, gOutputFileName);
+  Simulate(gNumPrimaries, &theSource, gVoxelSize, theSimMaterialData, geom);
+
+  geom.Write(gOutputFileName, gNumPrimaries);
   //
   return 0;
 }
