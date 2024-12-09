@@ -118,8 +118,6 @@ void SimGSTables::InitializeTables()
     cudaMemcpyToSymbol(GSTables::d_texVarU, &GSTables::texVarU, sizeof(cudaTextureObject_t));
 	cudaMemcpyToSymbol(GSTables::d_texParaA, &GSTables::texParaA, sizeof(cudaTextureObject_t));
 	cudaMemcpyToSymbol(GSTables::d_texParaB, &GSTables::texParaB, sizeof(cudaTextureObject_t));
-	cudaMemcpyToSymbol(GSTables::d_texTransformParam, &GSTables::texTransformParam, sizeof(cudaTextureObject_t));
-	cudaMemcpyToSymbol(GSTables::d_texPrimaryEnergyGrid, &GSTables::texPrimaryEnergyGrid, sizeof(cudaTextureObject_t));
 
     CudaCheckError();
 }

@@ -53,8 +53,9 @@ void SimIMFPBrem::initializeIMFPBremTable()
     texDesc.filterMode = cudaFilterModeLinear;
     texDesc.addressMode[0] = cudaAddressModeClamp;
     texDesc.addressMode[1] = cudaAddressModeClamp;
-    initCudaTexture(table.data(), &ne, 1, &texDesc, IMFPBrem::tex, IMFPBrem::array);
-
+    
+    int size[2] = { ne, fNumMaterial };
+    initCudaTexture(table.data(), size, 2, &texDesc, IMFPBrem::tex, IMFPBrem::array);
 	cudaMemcpyToSymbol(IMFPBrem::d_tex, &IMFPBrem::tex, sizeof(cudaTextureObject_t));
 }
 

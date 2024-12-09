@@ -122,6 +122,10 @@ void SimMollerTables::InitializeTables()
     initCudaTexture(YdataTable.data(), size, 2, &texDesc, MollerTables::texYdata, MollerTables::arrYdata);
     initCudaTexture(AliasWTable.data(), size, 2, &texDesc, MollerTables::texAliasW, MollerTables::arrAliasW);
     initCudaTexture(AliasIndxTable.data(), size, 2, &texDesc, MollerTables::texAliasIndx, MollerTables::arrAliasIndx);
+    cudaMemcpyToSymbol(MollerTables::d_texXdata, &MollerTables::texXdata, sizeof(cudaTextureObject_t));
+    cudaMemcpyToSymbol(MollerTables::d_texYdata, &MollerTables::texYdata, sizeof(cudaTextureObject_t));
+    cudaMemcpyToSymbol(MollerTables::d_texAliasW, &MollerTables::texAliasW, sizeof(cudaTextureObject_t));
+    cudaMemcpyToSymbol(MollerTables::d_texAliasIndx, &MollerTables::texAliasIndx, sizeof(cudaTextureObject_t));
 }
 
 void SimMollerTables::LoadData(const std::string& dataDir, int verbose) {

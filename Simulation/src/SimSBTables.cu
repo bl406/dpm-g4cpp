@@ -129,7 +129,10 @@ void SimSBTables::InitializeTables()
 	initCudaTexture(YdataTable.data(), size, 3, &texDesc, SBTables::texYdata, SBTables::arrYdata);
 	initCudaTexture(AliasWTable.data(), size, 3, &texDesc, SBTables::texAliasW, SBTables::arrAliasW);
 	initCudaTexture(AliasIndxTable.data(), size, 3, &texDesc, SBTables::texAliasIndx, SBTables::arrAliasIndx);
-
+    cudaMemcpyToSymbol(SBTables::d_texXdata, &SBTables::texXdata, sizeof(cudaTextureObject_t));
+    cudaMemcpyToSymbol(SBTables::d_texYdata, &SBTables::texYdata, sizeof(cudaTextureObject_t));
+    cudaMemcpyToSymbol(SBTables::d_texAliasW, &SBTables::texAliasW, sizeof(cudaTextureObject_t));
+    cudaMemcpyToSymbol(SBTables::d_texAliasIndx, &SBTables::texAliasIndx, sizeof(cudaTextureObject_t));
 }
 
 
