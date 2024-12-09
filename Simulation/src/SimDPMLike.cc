@@ -664,7 +664,7 @@ void PerformBrem(Track& track, SimSBTables* theSBTable) {
   const float kEMC2          = 0.510991f;
   const float kHalfSqrt2EMC2 = kEMC2 * 0.7071067812f;
   // sample energy transferred to the emitted gamma photon
-  const float eGamma = theSBTable->SampleEnergyTransfer(track.fEkin,
+  const float eGamma = SimSBTables::SampleEnergyTransfer(track.fEkin,
                                                          track.fMatIndx,
                                                          Random::UniformRand(),
                                                          Random::UniformRand(),
@@ -701,7 +701,7 @@ void PerformMoller(Track& track, SimMollerTables* theMollerTable) {
   const float kPI     = 3.1415926535897932f;
   const float kEMC2   = 0.510991f;
   const float k2EMC2  = 2.0f*kEMC2;
-  const float secEkin = theMollerTable->SampleEnergyTransfer( track.fEkin,
+  const float secEkin = SimMollerTables::SampleEnergyTransfer( track.fEkin,
                                                                Random::UniformRand(),
                                                                Random::UniformRand(),
                                                                Random::UniformRand());
