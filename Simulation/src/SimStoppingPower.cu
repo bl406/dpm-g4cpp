@@ -46,6 +46,9 @@ void SimStoppingPower::initializeStoppingPowerTable()
     texDesc.addressMode[1] = cudaAddressModeClamp;
 	int size[2] = { ne, fNumMaterial };
 	initCudaTexture(StoppingPowerTable.data(), size, 2, &texDesc, StoppingPower::tex, StoppingPower::array);
+    cudaMemcpyToSymbol(StoppingPower::d_tex, &StoppingPower::tex, sizeof(cudaTextureObject_t));
+
+    CudaCheckError();
 }
 
 SimStoppingPower::SimStoppingPower () {

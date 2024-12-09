@@ -56,7 +56,7 @@ namespace GSTables {
         const float e0 = tex1D<float>(d_texPrimaryEnergyGrid, ielow + 0.5f);
         const float e1 = tex1D<float>(d_texPrimaryEnergyGrid, ielow+1 + 0.5f);
 
-        const float parTransf = (a1 - a0) / (e1 - e0) * (eprim - e0) + a0;
+        const float parTransf = (a1 - a0) / (e1 - e0) * (eprim - e0) + a0;       
         return 1.f - 2.f * parTransf * theU / (1.f - theU + parTransf);
     }
 }
@@ -106,18 +106,22 @@ void SimGSTables::InitializeTables()
     texDesc.addressMode[1] = cudaAddressModeClamp;
 
     initCudaTexture(TransformParamTable.data(), &fNumPrimaryEnergies, 1, &texDesc, GSTables::texTransformParam, GSTables::arrTransformParam);
-    initCudaTexture(TransformParamTable.data(), &fNumPrimaryEnergies, 1, &texDesc, GSTables::texPrimaryEnergyGrid, GSTables::arrPrimaryEnergyGrid);
+    initCudaTexture(PrimaryEnergyGridTable.data(), &fNumPrimaryEnergies, 1, &texDesc, GSTables::texPrimaryEnergyGrid, GSTables::arrPrimaryEnergyGrid);
+    cudaMemcpyToSymbol(GSTables::d_texTransformParam, &GSTables::texTransformParam, sizeof(cudaTextureObject_t));
+    cudaMemcpyToSymbol(GSTables::d_texPrimaryEnergyGrid, &GSTables::texPrimaryEnergyGrid, sizeof(cudaTextureObject_t));
 
     int size[2] = { fSamplingTableSize, fNumPrimaryEnergies };
 	initCudaTexture(VarUTable.data(), size, 2, &texDesc, GSTables::texVarU, GSTables::arrVarU);
 	initCudaTexture(ParaATable.data(), size, 2, &texDesc, GSTables::texParaA, GSTables::arrParaA);
 	initCudaTexture(ParaBTable.data(), size, 2, &texDesc, GSTables::texParaB, GSTables::arrParaB);
 
-    cudaMemcpyToSymbol(GSTables::d_texVarU, &GSTables::d_texVarU, sizeof(cudaTextureObject_t));
-	cudaMemcpyToSymbol(GSTables::d_texParaA, &GSTables::d_texParaA, sizeof(cudaTextureObject_t));
-	cudaMemcpyToSymbol(GSTables::d_texParaB, &GSTables::d_texParaB, sizeof(cudaTextureObject_t));
-	cudaMemcpyToSymbol(GSTables::d_texTransformParam, &GSTables::d_texTransformParam, sizeof(cudaTextureObject_t));
-	cudaMemcpyToSymbol(GSTables::d_texPrimaryEnergyGrid, &GSTables::d_texPrimaryEnergyGrid, sizeof(cudaTextureObject_t));
+    cudaMemcpyToSymbol(GSTables::d_texVarU, &GSTables::texVarU, sizeof(cudaTextureObject_t));
+	cudaMemcpyToSymbol(GSTables::d_texParaA, &GSTables::texParaA, sizeof(cudaTextureObject_t));
+	cudaMemcpyToSymbol(GSTables::d_texParaB, &GSTables::texParaB, sizeof(cudaTextureObject_t));
+	cudaMemcpyToSymbol(GSTables::d_texTransformParam, &GSTables::texTransformParam, sizeof(cudaTextureObject_t));
+	cudaMemcpyToSymbol(GSTables::d_texPrimaryEnergyGrid, &GSTables::texPrimaryEnergyGrid, sizeof(cudaTextureObject_t));
+
+    CudaCheckError();
 }
 
 SimGSTables::SimGSTables() {
