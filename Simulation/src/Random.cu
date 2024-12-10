@@ -22,6 +22,6 @@ namespace CuRand {
     /* 获得一个在[0, 1)区间内均匀分布的double型变量 */
     __device__ float rand() {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        return curand_uniform(&d_states[idx]);
+        return 1.f - curand_uniform(&d_states[idx]);
     }
 }
