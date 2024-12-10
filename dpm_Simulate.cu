@@ -88,6 +88,17 @@ int main(int argc, char *argv[]) {
   Geom geom(gVoxelSize, &theSimMaterialData, theConfig.fGeomIndex);
   geom.Initialize();
 
+  int nbatch = 10;
+  if (gNumPrimaries / nbatch == 0) {
+      gNumPrimaries = nbatch;
+  }
+  // nhist对nperbatch向上取整
+  int nperbatch = gNumPrimaries / nbatch;
+  if (gNumPrimaries % nperbatch != 0) {
+      nbatch++;
+  }
+  gNumPrimaries = nperbatch * nbatch;
+
   Simulate(gNumPrimaries, &theSource);
   
   cudaMemcpy(geom.fEdepHist.data(), Geometry::EdepHist, geom.fEdepHist.size() * sizeof(float), cudaMemcpyDeviceToHost);

@@ -202,18 +202,10 @@ __global__ void Simulate_kernel()
 void Simulate(int nprimary, const Source* source)
 {
     int nbatch = 10;
-    if (nprimary / nbatch == 0) {
-        nprimary = nbatch;
-    }
-    // nhist对nperbatch向上取整
     int nperbatch = nprimary / nbatch;
-    if (nprimary % nperbatch != 0) {
-        nbatch++;
-    }
-    nprimary = nperbatch * nbatch;
-
-    //int seq_size = 65536;
-    int seq_size = 5120;
+   
+    int seq_size = 65536;
+    //int seq_size = 5120;
 	int stack_size = seq_size * 16;
     int nblocks = divUp(seq_size, THREADS_PER_BLOCK);
 
