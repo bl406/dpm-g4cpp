@@ -16,6 +16,8 @@ namespace SimpleSourceKernel {
 			track[index].fPosition[0] = 0.0f;                   // initial position is [0,0, theRZ0]
 			track[index].fPosition[1] = 0.0f;
 			track[index].fPosition[2] = -0.5f * lbox;
+
+			track[index].fTrackLength = 0;
 		}
 	}
 }

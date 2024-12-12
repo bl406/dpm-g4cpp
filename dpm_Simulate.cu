@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
   Geom geom(gVoxelSize, &theSimMaterialData, theConfig.fGeomIndex);
   geom.Initialize();
 
-  int nbatch = 10;
+  int nbatch = 1;
   if (gNumPrimaries / nbatch == 0) {
       gNumPrimaries = nbatch;
   }

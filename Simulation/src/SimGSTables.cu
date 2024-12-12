@@ -114,7 +114,6 @@ void SimGSTables::InitializeTables()
 	initCudaTexture(VarUTable.data(), size, 2, &texDesc, GSTables::texVarU, GSTables::arrVarU);
 	initCudaTexture(ParaATable.data(), size, 2, &texDesc, GSTables::texParaA, GSTables::arrParaA);
 	initCudaTexture(ParaBTable.data(), size, 2, &texDesc, GSTables::texParaB, GSTables::arrParaB);
-
     cudaMemcpyToSymbol(GSTables::d_texVarU, &GSTables::texVarU, sizeof(cudaTextureObject_t));
 	cudaMemcpyToSymbol(GSTables::d_texParaA, &GSTables::texParaA, sizeof(cudaTextureObject_t));
 	cudaMemcpyToSymbol(GSTables::d_texParaB, &GSTables::texParaB, sizeof(cudaTextureObject_t));

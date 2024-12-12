@@ -25,12 +25,11 @@
 #include "error_checking.h"
 #include "Utils.h"
 
-__global__ void Simulate_kernel()
-{
-	int tid = threadIdx.x + blockIdx.x * blockDim.x;
-	if (tid >= d_TrackSeq.fSize) return;
+#define DEBUG_LOG
 
-	Track& track = d_TrackSeq.fData[tid];
+__global__ void Simulate_kernel(int i)
+{
+	Track& track = d_TrackSeq.fData[i];
 
 	// compute the distance to the boundary
 	// (This also sets the box indices so the material index can be obtained)
@@ -48,7 +47,7 @@ __global__ void Simulate_kernel()
 	track.fMatIndx = theVoxelMatIndx;
 	// Use the dedicated tracking for photons if we have one in hand now:
 	if (track.fType == 0) {
-		KeepTrackingPhoton(track);
+		//KeepTrackingPhoton(track);
 		return;
 	}
 	//
@@ -112,6 +111,10 @@ __global__ void Simulate_kernel()
 		//     secondary e- production threshold (end of this history)
 		// c.  the e- leaves the geometry, i.e. goes into vacuum (its energy set to 0 so return with 4)
 		int whatHappend = KeepTrackingElectron(track, numTr1MFP, numMollerMFP, invMollerMFP, numBremMFP);
+#ifdef DEBUG_LOG
+        printf("whatHapped=%d track.fPostion=[%f %f %f] track.fTrackLength=%f track.fEdep=%f\n", 
+            whatHappend, track.fPosition[0], track.fPosition[1], track.fPosition[2], track.fTrackLength, track.fEdep);
+#endif
 		//
 		theVoxelMatIndx = track.fMatIndx;
 		// terminate if the tarck is in vacuum (its energy has been set to zero)
@@ -201,11 +204,18 @@ __global__ void Simulate_kernel()
 
 void Simulate(int nprimary, const Source* source)
 {
-    int nbatch = 10;
+    int nbatch = 1;
+    if (nprimary / nbatch == 0) {
+        nprimary = nbatch;
+    }
+    // nhist对nperbatch向上取整
     int nperbatch = nprimary / nbatch;
-   
-    int seq_size = 65536;
-    //int seq_size = 5120;
+    if (nprimary % nperbatch != 0) {
+        nbatch++;
+    }
+    nprimary = nperbatch * nbatch;
+
+	int seq_size = nprimary;
 	int stack_size = seq_size * 16;
     int nblocks = divUp(seq_size, THREADS_PER_BLOCK);
 
@@ -262,7 +272,10 @@ void Simulate(int nprimary, const Source* source)
             cudaMemcpyToSymbol(d_PhotonStack, &h_PhotonStack, sizeof(TrackStack));
             cudaMemcpyToSymbol(d_ElectronStack, &h_ElectronStack, sizeof(TrackStack));
             CudaCheckError();
-            Simulate_kernel << <nblocks, THREADS_PER_BLOCK >> > ();
+            for (int i = 0; i < nprimary; ++i) {
+                Simulate_kernel << <1, 1 >> > (i);
+            }                       
+            return;
             CudaCheckError();            
             h_TrackSeq.fSize = 0;
             cudaMemcpyFromSymbol(&h_PhotonStack, d_PhotonStack, sizeof(TrackStack));
@@ -535,7 +548,8 @@ __device__ void KeepTrackingPhoton(Track& track) {
     if (r1 < theProb) {
       // Compton interaction: Klein-Nishina like
       // the photon scattering angle and post-interafctin energy fraction
-      const float theEps = KNTables::SampleEnergyTransfer(track.fEkin, CuRand::rand(), CuRand::rand(), CuRand::rand());
+        float three_rand[3] = { CuRand::rand(), CuRand::rand(), CuRand::rand() };
+      const float theEps = KNTables::SampleEnergyTransfer(track.fEkin, three_rand[2], three_rand[1], three_rand[0]);
       const float kappa  = track.fEkin*kInvEMC2;
       const float phCost = 1.0f-(1.0-theEps)/(theEps*kappa); // 1- (1-cost)
       const float phEner = theEps*track.fEkin;
@@ -685,11 +699,8 @@ __device__ void PerformBrem(Track& track) {
   const float kEMC2          = 0.510991f;
   const float kHalfSqrt2EMC2 = kEMC2 * 0.7071067812f;
   // sample energy transferred to the emitted gamma photon
-  const float eGamma = SBTables::SampleEnergyTransfer(track.fEkin,
-                                                         track.fMatIndx,
-                                                         CuRand::rand(),
-                                                         CuRand::rand(),
-                                                        CuRand::rand());
+  float three_rand[3] = { CuRand::rand(), CuRand::rand(), CuRand::rand() };
+  const float eGamma = SBTables::SampleEnergyTransfer(track.fEkin,track.fMatIndx, three_rand[2], three_rand[1], three_rand[0]);
  // insert the secondary gamma track into the stack
  Track& aTrack        = d_PhotonStack.push_one();
  aTrack.fType         = 0;
@@ -722,10 +733,9 @@ __device__ void PerformMoller(Track& track) {
   const float kPI     = 3.1415926535897932f;
   const float kEMC2   = 0.510991f;
   const float k2EMC2  = 2.0f*kEMC2;
-  const float secEkin = MollerTables::SampleEnergyTransfer( track.fEkin,
-                                                               CuRand::rand(),
-                                                               CuRand::rand(),
-                                                               CuRand::rand());
+  float three_rand[3] = { CuRand::rand(), CuRand::rand(), CuRand::rand() };
+  const float secEkin = MollerTables::SampleEnergyTransfer(track.fEkin, three_rand[2], three_rand[1], three_rand[0]);
+                                                               
   const float cost    = std::sqrt(secEkin*(track.fEkin+k2EMC2)/(track.fEkin*(secEkin+k2EMC2)));
   const float secCost = fmin(1.0f, cost);
   // insert the secondary e- track into the stack
@@ -752,9 +762,8 @@ __device__ void PerformMoller(Track& track) {
 
 __device__ void PerformMSCAngularDeflection(Track& track, float ekin0) {
   const float kPI  = 3.1415926535897932f;
-  const float dum0 = GSTables::SampleAngularDeflection( ekin0,
-                                                            CuRand::rand(),
-                                                            CuRand::rand());
+  float two_rand[2] = { CuRand::rand(), CuRand::rand() };
+  const float dum0 = GSTables::SampleAngularDeflection(ekin0, two_rand[1], two_rand[0]);
   const float cost = fmax(-1.0f, fmin(1.0f, dum0));
   const float sint = std::sqrt((1.0-cost)*(1.0f+cost));
   // smaple \phi: uniform in [0,2Pi] <== spherical symmetry of the scattering potential
