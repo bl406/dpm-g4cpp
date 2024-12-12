@@ -25,7 +25,7 @@
 #include "error_checking.h"
 #include "Utils.h"
 
-#define DEBUG_LOG
+//#define DEBUG_LOG
 
 __global__ void Simulate_kernel(int i)
 {
@@ -47,7 +47,7 @@ __global__ void Simulate_kernel(int i)
 	track.fMatIndx = theVoxelMatIndx;
 	// Use the dedicated tracking for photons if we have one in hand now:
 	if (track.fType == 0) {
-		//KeepTrackingPhoton(track);
+		KeepTrackingPhoton(track);
 		return;
 	}
 	//
@@ -112,8 +112,8 @@ __global__ void Simulate_kernel(int i)
 		// c.  the e- leaves the geometry, i.e. goes into vacuum (its energy set to 0 so return with 4)
 		int whatHappend = KeepTrackingElectron(track, numTr1MFP, numMollerMFP, invMollerMFP, numBremMFP);
 #ifdef DEBUG_LOG
-        printf("whatHapped=%d track.fPostion=[%f %f %f] track.fTrackLength=%f track.fEdep=%f\n", 
-            whatHappend, track.fPosition[0], track.fPosition[1], track.fPosition[2], track.fTrackLength, track.fEdep);
+        printf("id=%d whatHapped=%d track.fPostion=[%f %f %f] track.fTrackLength=%f track.fEdep=%f\n", 
+            i, whatHappend, track.fPosition[0], track.fPosition[1], track.fPosition[2], track.fTrackLength, track.fEdep);
 #endif
 		//
 		theVoxelMatIndx = track.fMatIndx;
@@ -272,10 +272,9 @@ void Simulate(int nprimary, const Source* source)
             cudaMemcpyToSymbol(d_PhotonStack, &h_PhotonStack, sizeof(TrackStack));
             cudaMemcpyToSymbol(d_ElectronStack, &h_ElectronStack, sizeof(TrackStack));
             CudaCheckError();
-            for (int i = 0; i < nprimary; ++i) {
+            for (int i = 0; i < h_TrackSeq.size(); ++i) {
                 Simulate_kernel << <1, 1 >> > (i);
-            }                       
-            return;
+            }                                 
             CudaCheckError();            
             h_TrackSeq.fSize = 0;
             cudaMemcpyFromSymbol(&h_PhotonStack, d_PhotonStack, sizeof(TrackStack));

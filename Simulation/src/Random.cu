@@ -1,4 +1,5 @@
 #include "Random.hh"
+#include <cassert>
 
 std::mt19937 Random::generator(123);
 std::uniform_real_distribution<double> Random::dis(0.0,1.0);
@@ -8,7 +9,7 @@ namespace CuRand {
     float* RandomArray;
     __device__ float* d_RandomArray;
 
-#define N 65536
+#define N 655360
 
     /* 初始化生成器 */
     __global__ void initGenerator(unsigned long long seed) {
@@ -37,7 +38,8 @@ namespace CuRand {
         return curand_uniform(&d_states[idx]);*/
         static int id = 0;
         if (id >= N) {
-            printf("Run out of random values!");			
+            printf("Run out of random values!");	
+			assert(false);
         }
 		return d_RandomArray[id++];
     }
