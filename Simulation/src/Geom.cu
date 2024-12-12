@@ -190,10 +190,8 @@ void Geom::Initialize() {
     texDesc.filterMode = cudaFilterModePoint;
     texDesc.addressMode[0] = cudaAddressModeClamp;
 
-    initCudaTexture(fMaterialData->fMaterialDensity.data(), &dim, 1, &texDesc, 
-        Geometry::texDensity, Geometry::arrDensity);
-    initCudaTexture(fMaterialData->fMollerIMFPScaling.data(), &dim, 1, &texDesc,
-        Geometry::texMollerIMFPScaling, Geometry::arrMollerIMFPScaling);
+    initCudaTexture(fMaterialData->fMaterialDensity.data(), &dim, 1, &texDesc,  Geometry::texDensity, Geometry::arrDensity);
+    initCudaTexture(fMaterialData->fMollerIMFPScaling.data(), &dim, 1, &texDesc, Geometry::texMollerIMFPScaling, Geometry::arrMollerIMFPScaling);
 
     cudaMemcpyToSymbol(Geometry::d_texDensity, &Geometry::texDensity, sizeof(cudaTextureObject_t));
     cudaMemcpyToSymbol(Geometry::d_texMollerIMFPScaling, &Geometry::texMollerIMFPScaling, sizeof(cudaTextureObject_t));
@@ -240,7 +238,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
     // direction in which it's only half box
     if (std::abs(r[0]) > kExtent || std::abs(r[1]) > kExtent || r[2] > kExtent || r[2] < -fLBox) {
         // indicates out of the geometry
-        return -1.0;
+        return -1.0f;
     }
     // compute the current x,y and z box/volume index based on the current r(rx,ry,rz)
     // round downward to integer
@@ -259,7 +257,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
     float snext = 1.0E+20f;
     //
     // calculate x
-    if (v[0] > 0.0) {
+    if (v[0] > 0.0f) {
         pdist = fLHalfBox - trX;
         // check if actually this location is on boudnary
         if (pdist < kHalfTolerance) {
@@ -271,7 +269,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
             snext = pdist / v[0];
         }
     }
-    else if (v[0] < 0.0) {
+    else if (v[0] < 0.0f) {
         pdist = fLHalfBox + trX;
         if (pdist < kHalfTolerance) {
             // push to the otherside
@@ -297,7 +295,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
             }
         }
     }
-    else if (v[1] < 0.0) {
+    else if (v[1] < 0.0f) {
         pdist = fLHalfBox + trY;
         if (pdist < kHalfTolerance) {
             r[1] -= kTolerance;
@@ -312,7 +310,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
     }
     //
     // calculate z
-    if (v[2] > 0.0) {
+    if (v[2] > 0.0f) {
         pdist = fLHalfBox - trZ;
         if (pdist < kHalfTolerance) {
             r[2] += kTolerance;
@@ -325,7 +323,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
             }
         }
     }
-    else if (v[2] < 0.0) {
+    else if (v[2] < 0.0f) {
         pdist = fLHalfBox + trZ;
         if (pdist < kHalfTolerance) {
             r[2] -= kTolerance;
