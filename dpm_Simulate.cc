@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
   // create the simple geometry
   Geom geom(gVoxelSize, &theSimMaterialData, theConfig.fGeomIndex);
 
-  int nbatch = 10;
+  int nbatch = 1;
   if (gNumPrimaries / nbatch == 0) {
       gNumPrimaries = nbatch;
   }
