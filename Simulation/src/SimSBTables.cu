@@ -35,7 +35,7 @@ namespace SBTables {
         float rest = rndm1 * (SamplingTableSize - 1);
         int    indxl = (int)(rest);
 
-        if (tex3D<float>(d_texAliasW, imat, penergyindx, indxl) < rest - indxl)
+        if (tex3D<float>(d_texAliasW, indxl + 0.5f, penergyindx + 0.5f, imat + 0.5f) < rest - indxl)
             indxl = tex3D<int>(d_texAliasIndx, indxl + 0.5f, penergyindx + 0.5f, imat + 0.5f);
 
         // sample value within the selected bin by using linear aprox. of the p.d.f.
