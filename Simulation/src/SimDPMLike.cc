@@ -47,7 +47,7 @@ void   Simulate_kernel(Geom& geom, float theElectronCut, float theGammaCut, SimM
              // (This also sets the box indices so the material index can be obtained)
              // init the step length to this distance to boundary
      //          float step =
-        geom.DistanceToBoundary(track.fPosition, track.fDirection, track.fBoxIndx);
+         geom.DistanceToBoundary(track.fPosition, track.fDirection, track.fBoxIndx);
         // get the current material index: i.e. the base material of the voxel
         // NOTE: vacuum is indicated by the special voxel material index of -1
         //       Stop tracking if the track is in a voxel filled with vacuum.
@@ -216,15 +216,22 @@ void   Simulate_kernel(Geom& geom, float theElectronCut, float theGammaCut, SimM
 }
 
 
-void   Simulate(int nprimary, const Source* source, float lbox, SimMaterialData& matData, Geom& geom) {
+int   Simulate(int nprimary, const Source* source, float lbox, SimMaterialData& matData, Geom& geom) {
   //
   const float theElectronCut = matData.fElectronCut;
   const float theGammaCut    = matData.fGammaCut;
 
+  const int SeqSize = 65536;
+
   int nbatch = 10;
   int nperbatch = nprimary / nbatch;
+  // nhist对nperbatch向上取整
+  if (nprimary % nperbatch != 0) {
+      nbatch++;
+  }
+  nprimary = nperbatch * nbatch;
 
-  int seq_size = 65536;
+  int seq_size = nperbatch > SeqSize ? SeqSize : nperbatch;
   int stack_size = seq_size * 16;
 
   h_PhotonStack.init(stack_size);
@@ -276,8 +283,11 @@ void   Simulate(int nprimary, const Source* source, float lbox, SimMaterialData&
           Simulate_kernel(geom, theElectronCut, theGammaCut, matData);
           h_TrackSeq.fSize = 0;
       }
+
       std::cout << "\n === End simulation of N = " << (ibatch + 1) * nperbatch << " events === \n" << std::endl;
   }
+
+  return nprimary;
 }
 
 

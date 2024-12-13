@@ -44,7 +44,7 @@ class Source;
 // The resulted depth dose histogram of the simulation is written into the `hist.sim`
 // file at the termination of the simulation.
 //
-void  Simulate(int nprimary, const Source* source, float lbox, SimMaterialData& matData, Geom& geom);
+int  Simulate(int nprimary, const Source* source, float lbox, SimMaterialData& matData, Geom& geom);
 
 
 
