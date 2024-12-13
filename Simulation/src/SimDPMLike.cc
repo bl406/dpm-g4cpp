@@ -146,7 +146,7 @@ void   Simulate_kernel(Geom& geom, float theElectronCut, float theGammaCut, SimM
                 // below the tracking cut and stop tracking if yes
                 if (track.fEkin < theElectronCut) {
                     // deposit the whole energy and stop tracking
-                    geom.Score(track.fEkin, track.fBoxIndx[2]);
+                    geom.Score(track.fEkin, track.fBoxIndx);
                     track.fEkin = 0.0;
                     // perform annihilation in case of e+
                     if (track.fType == +1) {
@@ -221,10 +221,10 @@ void   Simulate(int nprimary, const Source* source, float lbox, SimMaterialData&
   const float theElectronCut = matData.fElectronCut;
   const float theGammaCut    = matData.fGammaCut;
 
-  int nbatch = 10;
+  int nbatch = 1;
   int nperbatch = nprimary / nbatch;
 
-  int seq_size = 65536;
+  int seq_size = 1;
   int stack_size = seq_size * 16;
 
   h_PhotonStack.init(stack_size);
@@ -276,6 +276,7 @@ void   Simulate(int nprimary, const Source* source, float lbox, SimMaterialData&
           Simulate_kernel(geom, theElectronCut, theGammaCut, matData);
           h_TrackSeq.fSize = 0;
       }
+
       std::cout << "\n === End simulation of N = " << (ibatch + 1) * nperbatch << " events === \n" << std::endl;
   }
 }
@@ -467,7 +468,7 @@ int KeepTrackingElectron(SimMaterialData& matData, Geom& geom, Track& track, flo
     // interaction (whatHappend={1,2,3}) OR to terminate the tracking (whatHappend=4)
     // NOTE: we need to score before calling DistanceToBoundary again because that
     //       might positon the particle to the next volume.
-    geom.Score(track.fEdep, track.fBoxIndx[2]);
+    geom.Score(track.fEdep, track.fBoxIndx);
     //
     // Compute distance to boundary if geometry limited this step:
     // - if geometry limited the step, the current position above is on a
@@ -552,7 +553,7 @@ void KeepTrackingPhoton(SimMaterialData& matData, Geom& geom, Track& track) {
       // insert the secondary e- only if ist energy is above the tracking cut
       // and deposit the corresponding enrgy otherwise
       if (elEner < theElectronCut) {
-        geom.Score(elEner, track.fBoxIndx[2]);
+        geom.Score(elEner, track.fBoxIndx);
         //geom.Score(elEner, track.fPosition[2]);
       } else {
         // insert secondary e- but first compute its cost
@@ -580,7 +581,7 @@ void KeepTrackingPhoton(SimMaterialData& matData, Geom& geom, Track& track) {
       // stop the photon if its energy dropepd below the photon absorption threshold
       track.fEkin = phEner;
       if (track.fEkin < theGammaCut) {
-        geom.Score(track.fEkin, track.fBoxIndx[2]);
+        geom.Score(track.fEkin, track.fBoxIndx);
         //geom.Score(track.fEkin, track.fPosition[2]);
         track.fEkin = 0.0;
         return;
@@ -614,7 +615,7 @@ void KeepTrackingPhoton(SimMaterialData& matData, Geom& geom, Track& track) {
       // insert the e- and e+ only if their energy is above the tracking cut
       // the e-
       if (e2 < theElectronCut) {
-        geom.Score(e2, track.fBoxIndx[2]);
+        geom.Score(e2, track.fBoxIndx);
         //geom.Score(e2, track.fPosition[2]);
       } else {
           Track& aTrack = h_ElectronStack.push_one();
@@ -633,7 +634,7 @@ void KeepTrackingPhoton(SimMaterialData& matData, Geom& geom, Track& track) {
       }
       // the e+
       if (e1 < theElectronCut) {
-        geom.Score(e1, track.fBoxIndx[2]);
+        geom.Score(e1, track.fBoxIndx);
         //geom.Score(e1, track.fPosition[2]);
         PerformAnnihilation(track);
       } else {
@@ -658,7 +659,7 @@ void KeepTrackingPhoton(SimMaterialData& matData, Geom& geom, Track& track) {
 
     // if we are here then Photoelectric effect happens that absorbs the photon:
     // - score the current phton energy and stopp the photon
-    geom.Score(track.fEkin, track.fBoxIndx[2]);
+    geom.Score(track.fEkin, track.fBoxIndx);
     //geom.Score(track.fEkin, track.fPosition[2]);
     track.fEkin = 0.0;
   };
