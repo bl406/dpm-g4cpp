@@ -21,9 +21,9 @@ namespace SimpleSourceKernel {
 	}
 }
 
-SimpleSource::SimpleSource(float ekin, int type, float lbox) {
-	fEkin = ekin;
-	fType = type;
+SimpleSource::SimpleSource(float lbox) {
+	fEkin = 15;
+	fType = -1;
 	fLBox = lbox;
 }
 

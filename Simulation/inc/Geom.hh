@@ -113,8 +113,10 @@ public:
 
   void Score(float edep, int iz[3]);
 
+  void AccumEndep();
+
   // writes the histograms into the `fname` file
-  void   Write(const std::string& fname, int nprimaries);
+  void  Write(const std::string& fname, int nprimaries, int nbatch);
 
   void InitGeom();
 

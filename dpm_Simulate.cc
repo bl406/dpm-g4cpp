@@ -26,20 +26,14 @@
 
 //
 // Input arguments for the simulation phase with their default values.
-static std::string   gPrimaryParticle("e-");        // primary particle is electron
-static std::string   gInputDataDir("./data");       // location of the pre-generated data
-static std::string   gOutputFileName("hist.sim");   // the output filename
-static float        gPrimaryEnergy     = 15.0f;     // primary particle energy in [MeV]
-static float        gVoxelSize         =  1.0f;     // geometry voxel/box size in [mm]
+static std::string   gInputDataDir("./phydata");       // location of the pre-generated data (currently config0)
+static std::string   gOutputFileName("dpm");   // the output filename
+static float         gVoxelSize         =  1.0f;     // geometry voxel/box size in [mm]
 static int           gNumPrimaries      =  (int)1.0E+5;  // simulate 100 000 primary events
 static int           gConfigIndex       =  0;       // 0 that corresponds to a homogeneous Water geometry
 //
 static struct option options[] = {
-  {"primary-particle    (possible particle names: e-, gamma)            - default: e-"     , required_argument, 0, 'p'},
-  {"primary-energy      (in [MeV] units)                                - default: 15"     , required_argument, 0, 'e'},
   {"number-of-histories (number of primary events to simulate)          - default: 1.0E+5" , required_argument, 0, 'n'},
-  {"input-data-dir      (where the pre-generated data are located)      - default: ./data" , required_argument, 0, 'd'},
-  {"voxel-size          (size of the voxel/box in [mm])                 - default: 1.0"    , required_argument, 0, 'b'},
   {"configuration-index (one of the pre-defined configuration index)    - default: 0"      , required_argument, 0, 'c'},
   {"output-filename     (the filename of the result)                    - default: hist.sim"      , required_argument, 0, 'o'},
   {"help"                                                                                  , no_argument      , 0, 'h'},
@@ -62,11 +56,7 @@ int main(int argc, char *argv[]) {
   //
   // get the input arguments
   GetOpt(argc, argv);
-  //
-  // get the predefined configuration
-  Configuration  theConfig;
-  theConfig.PreDefinedConfigurations(gConfigIndex);
-  theConfig.Write();
+  
   //
   // Load data for simulation:
   // - electron related data
@@ -79,19 +69,19 @@ int main(int argc, char *argv[]) {
   SimMaterialData theSimMaterialData;
   theSimMaterialData.Load(gInputDataDir);
 
-  bool isElectron = (gPrimaryParticle == "e-");
-  SimpleSource theSource(gPrimaryEnergy, isElectron, gVoxelSize);
+  SimpleSource theSource(gVoxelSize);
 
   // create the simple geometry
-  Geom geom(gVoxelSize, &theSimMaterialData, theConfig.fGeomIndex);
+  Geom geom(gVoxelSize, &theSimMaterialData, gConfigIndex);
   geom.InitGeom();
   geom.InitScore();
 
   //
   // Execute the simulation according to the iput arguments
-  gNumPrimaries = Simulate(gNumPrimaries, &theSource, gVoxelSize, theSimMaterialData, geom);
+  int nbatch = 10;
+  gNumPrimaries = Simulate(gNumPrimaries, nbatch, &theSource, gVoxelSize, theSimMaterialData, geom);
 
-  geom.Write(gOutputFileName, gNumPrimaries);
+  geom.Write(gOutputFileName, gNumPrimaries, nbatch);
   //
   return 0;
 }
@@ -115,35 +105,18 @@ void Help() {
 void GetOpt(int argc, char *argv[]) {
   while (true) {
     int c, optidx = 0;
-    c = getopt_long(argc, argv, "hp:e:n:d:b:c:o:", options, &optidx);
+    c = getopt_long(argc, argv, "hp:e:n:c:o:", options, &optidx);
     if (c == -1)
       break;
     switch (c) {
     case 0:
        c = options[optidx].val;
        /* fall through */
-    case 'p':
-       gPrimaryParticle = optarg;
-       if ( !(gPrimaryParticle=="e-" || gPrimaryParticle=="gamma") ) {
-         std::cout << " *** Unknown primary particle name -p: " << optarg << std::endl;
-         Help();
-         exit(-1);
-       }
-       break;
     case 'o':
 		gOutputFileName = optarg;
 		break;
-    case 'e':
-       gPrimaryEnergy = (float)std::stod(optarg);
-       break;
     case 'n':
        gNumPrimaries  = std::stoi(optarg);
-       break;
-    case 'd':
-       gInputDataDir  = optarg;
-       break;
-    case 'b':
-       gVoxelSize     = (float)std::stod(optarg);
        break;
     case 'c':
        gConfigIndex   = std::stoi(optarg);
@@ -161,8 +134,6 @@ void GetOpt(int argc, char *argv[]) {
    std::cout << "\n === The dpm++ simulation confguration: \n"
             << "\n     - input data directory  : " << gInputDataDir
             << "\n     - output filename  : " << gOutputFileName
-            << "\n     - primary particle      : " << gPrimaryParticle
-            << "\n     - primary energy        : " << gPrimaryEnergy << " [MeV]"
             << "\n     - number of histories   : " << gNumPrimaries
             << "\n     - geometry voxel size   : " << gVoxelSize  << " [mm]"
             << "\n     - confoguration index   : " << gConfigIndex

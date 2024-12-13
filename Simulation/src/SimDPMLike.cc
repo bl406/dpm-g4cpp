@@ -216,14 +216,13 @@ void   Simulate_kernel(Geom& geom, float theElectronCut, float theGammaCut, SimM
 }
 
 
-int   Simulate(int nprimary, const Source* source, float lbox, SimMaterialData& matData, Geom& geom) {
+int   Simulate(int nprimary, int nbatch, const Source* source, float lbox, SimMaterialData& matData, Geom& geom) {
   //
   const float theElectronCut = matData.fElectronCut;
   const float theGammaCut    = matData.fGammaCut;
 
   const int SeqSize = 65536;
 
-  int nbatch = 10;
   int nperbatch = nprimary / nbatch;
   // nhist对nperbatch向上取整
   if (nprimary % nperbatch != 0) {
@@ -283,6 +282,8 @@ int   Simulate(int nprimary, const Source* source, float lbox, SimMaterialData& 
           Simulate_kernel(geom, theElectronCut, theGammaCut, matData);
           h_TrackSeq.fSize = 0;
       }
+
+	  geom.AccumEndep();
 
       std::cout << "\n === End simulation of N = " << (ibatch + 1) * nperbatch << " events === \n" << std::endl;
   }

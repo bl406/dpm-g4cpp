@@ -14,7 +14,7 @@ public:
 class SimpleSource : public Source
 {	
 public:
-	SimpleSource(float ekin, int type, float lbox);
+	SimpleSource(float lbox);
 	~SimpleSource() {}
 
 	void InitTracks(Track* track, int n) const override;

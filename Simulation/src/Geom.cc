@@ -245,6 +245,15 @@ float Geom::DistanceToBoundaryOriginal(float* r, float* v, int* i) {
     return snext;
 }
 
+void Geom::AccumEndep() {
+	int nvoxels = fDims[0] * fDims[1] * fDims[2];
+    for (int i = 0; i < nvoxels; ++i) {
+		fAccumEndep[i] += fEndep[i];
+		fAccumEndep2[i] += fEndep[i] * fEndep[i];
+		fEndep[i] = 0.0f;
+    }
+}
+
 void Geom::Score(float edep, int* ivoxel) {
     int index = ivoxel[0] + ivoxel[1] * fDims[0] + ivoxel[2] * fDims[1] * fDims[0];
     if(index < fDims[0]* fDims[1]* fDims[2])
@@ -289,22 +298,35 @@ int Geom::GetMaterialIndexOriginal(int* i) {
 }
 
 
-void Geom::InitGeom() {
-    fSpacing.fill(1.0);
-    fInvSpacing.fill(1.0);
+void Geom::InitGeom() {   
     switch (fPreDefinedGeomIndex)
     {
-    case 3:
+    case 0:
     default:
+        fSpacing.fill(1.0);
+        fInvSpacing.fill(1.0);
+
         fXbound = { -100.5f, 100.5f };
         fYbound = { -100.5f, 100.5f };
         fZbound = { -0.5f, 100.5f };
+
+        fDims[0] = static_cast<int>(round((fXbound[1] - fXbound[0]) / fSpacing[0]));
+        fDims[1] = static_cast<int>(round((fYbound[1] - fYbound[0]) / fSpacing[1]));
+        fDims[2] = static_cast<int>(round((fZbound[1] - fZbound[0]) / fSpacing[2]));
+
+        fMedIndices.resize(fDims[0] * fDims[1] * fDims[2]);
+        for (int i = 0; i < fDims[0]; i++) {
+            for (int j = 0; j < fDims[1]; j++) {
+                for (int k = 0; k < fDims[2]; k++) {
+                    int irl = i + j * fDims[0] + k * fDims[1] * fDims[0];
+                    int ivoxel[3] = { i, j, k };
+                    fMedIndices[irl] = 0;
+                }
+            }
+        }
+
         break;;
     }
-
-    fDims[0] = static_cast<int>(round((fXbound[1] - fXbound[0]) / fSpacing[0]));
-    fDims[1] = static_cast<int>(round((fYbound[1] - fYbound[0]) / fSpacing[1]));
-    fDims[2] = static_cast<int>(round((fZbound[1] - fZbound[0]) / fSpacing[2]));
 
 	fXbounds.resize(fDims[0] + 1);
 	fYbounds.resize(fDims[1] + 1);
@@ -322,56 +344,42 @@ void Geom::InitGeom() {
 	for (int i = 1; i < fDims[2] + 1; i++) {
 		fZbounds[i] = fZbounds[i - 1] + fSpacing[2];
 	}
-
-    fMedIndices.resize(fDims[0] * fDims[1] * fDims[2]);
-    for (int i = 0; i < fDims[0]; i++) {
-        for (int j = 0; j < fDims[1]; j++) {
-            for (int k = 0; k < fDims[2]; k++) {
-                int irl = i + j * fDims[0] + k * fDims[1] * fDims[0];
-                int ivoxel[3] = { i, j, k };
-                fMedIndices[irl] = GetMaterialIndexOriginal(ivoxel);
-            }
-        }
-    }
 }
 
 
-void Geom::Write(const std::string& fname, int nprimaries) {
-    float fLBox = 1.f;
-	std::vector<float> fEdepHist(fDims[2], 0.0f);
-	for (int i = 0; i < fDims[0]; i++) {
-		for (int j = 0; j < fDims[1]; j++) {
-			for (int k = 0; k < fDims[2]; k++) {
-				int index = i + j * fDims[0] + k * fDims[1] * fDims[0];
-				fEdepHist[k] += fEndep[index];
-			}
-		}
+void Geom::Write(const std::string& fname, int nprimaries, int nbatch) {
+	// To do: compute the variance and normalize the accumulated energy deposition
+    float endep, endep2, unc_endep;
+	int nvoxels = fDims[0] * fDims[1] * fDims[2];
+	for (int i = 0; i < nvoxels; ++i) 
+    {
+		endep = fAccumEndep[i]/nbatch;
+		endep2 = fAccumEndep2[i]/nbatch;
+        /* Batch approach uncertainty calculation */
+        if (endep != 0.0) {
+            unc_endep = endep2 - endep * endep;
+            unc_endep /= (nbatch - 1);
+
+            /* Relative uncertainty */
+            unc_endep = sqrt(unc_endep) / endep;
+        }
+        else {
+            endep = 0.0;
+            unc_endep = 0.9999999f;
+        }
+
+        fAccumEndep[i] = endep;
+		fAccumEndep2[i] = unc_endep;
 	}
 
-  FILE *f = fopen(fname.c_str(),"w");
-  if (!f) {
-    std::cerr<< " *** ERROR in Geom::Write(): "
-             << " file " << fname << " could not be created! "
-             << std::endl;
-  }
-  const float toCm = 0.1f;
-  int      sizeHist = (int)fEdepHist.size();
-  float       norm = 1.f/(nprimaries*fLBox*toCm);
-  float    sumEdep = 0.0f;
-  for (int i=0; i<sizeHist; ++i) { sumEdep += fEdepHist[i]; }
-  fprintf(f, "# === Mean energy deposit in the target: %13.4e  [MeV/event]\n", sumEdep/nprimaries);
-  fprintf(f, "# === Energy deposit as a function of the depth: \n");
-  // write the histogram: depth dose [MeV/cm]/density[g/cm3]--> [MeV cm2/g] as a function of depth [cm]
-  fprintf(f, "# === Index       Depth [cm]    Edep [MeV cm2/g]  #Simulation-Steps \n");
-  int idumy[] = {0,0,0};
-  for (int i=0; i<sizeHist; ++i) {
-    // set the iz voxel index and get the corresponding material density
-    idumy[2] = i;
-    float matDensity = GetVoxelMaterialDensity(idumy);
-    fprintf(f, " %10d    %13.4e    %13.4e\n", i, (i+0.5f)*fLBox*toCm, fEdepHist[i]*norm/matDensity);
-  }
-  fclose(f);
-  std::cout << " === Energy deposit histogram is written to the file:  " << fname << "\n" << std::endl;
-
-  //writeMetaImage(fname + "dose", fDims, fSpacing, endep.data());
+    /* Zero dose in air */
+    /*for (int i = 0; i < nvoxels; ++i) {
+		if (fMedIndices[i] == 0) {
+			fAccumEndep[i] = 0.0;
+			fAccumEndep2[i] = 0.9999999f;
+		}
+    }*/
+  
+    writeMetaImage(fname + ".dose", fDims, fSpacing, fAccumEndep.data());
+    writeMetaImage(fname + ".unc", fDims, fSpacing, fAccumEndep2.data());
 }
