@@ -25,20 +25,9 @@ void Geom::InitScore()
 float Geom::DistanceToBoundary(float* r, float* v, int* i) {
     static float kHalfTolerance = 0.5f * kTolerance;
 
-
-    float r2[3], v2[3], rbk[3];
-	int i2[3];
-	for (int j = 0; j < 3; ++j) {
-        rbk[j] = r[j];
-		r2[j] = r[j];
-		v2[j] = v[j];
-        i2[j] = i[j];
-	}
-
     if (r[0] < fXbound[0] || r[0] > fXbound[1]
         || r[1] < fYbound[0] || r[1] > fYbound[1]
-        || r[2] < fZbound[0] || r[2] > fZbound[1])
-    {
+        || r[2] < fZbound[0] || r[2] > fZbound[1]){
         return -1.0f;
     }
 
@@ -48,24 +37,25 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
     i[1] = (int)std::floor((r[1] - fYbound[0]) * fInvSpacing[1]);
     i[2] = (int)std::floor((r[2] - fZbound[0]) * fInvSpacing[2]);
 
-  //  // the particle may lie exatly on the boudary of the phantom which make the index outside
-  //  if (i[0] < 0 || i[0] >= fDims[0] || i[1] < 0 || i[1] >= fDims[1] || i[2] < 0 || i[2] >= fDims[2]) {
-		//return -1.0f;
-  //  }
+    // the particle may lie exatly on the boudary of the phantom which make the index invalid
+    if (i[0] < 0 || i[0] > fDims[0] || i[1] < 0 || i[1] > fDims[1] || i[2] < 0 || i[2] > fDims[2]) {
+		return -1.0f;
+    }
+
     //
     // transform the r(rx,ry,rz) into the current local box
-    const float trX = r[0] - fXbounds[i[0]] - 0.5f * fSpacing[0];
-    const float trY = r[1] - fYbounds[i[1]] - 0.5f * fSpacing[1];
-    const float trZ = r[2] - fZbounds[i[2]] - 0.5f * fSpacing[2];
+    const float trX = r[0] - fXbounds[i[0]];
+    const float trY = r[1] - fYbounds[i[1]];
+    const float trZ = r[2] - fZbounds[i[2]];
     //
-    // compute the distance to boundary in the local box (centered around 0,0,0)
+    // compute the distance to boundary in the local box
     float pdist = 0.0f;
     float stmp = 0.0f;
     float snext = 1.0E+20f;
     //
     // calculate x
     if (v[0] > 0.0) {
-        pdist = fSpacing[0] * 0.5f - trX;
+        pdist = fSpacing[0] - trX;
         // check if actually this location is on boudnary
         if (pdist < kHalfTolerance) {
             // on boundary: push to the next box/volume, i.e. to the otherside and recompute
@@ -77,7 +67,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
         }
     }
     else if (v[0] < 0.0) {
-        pdist = fSpacing[0] * 0.5f + trX;
+        pdist = trX;
         if (pdist < kHalfTolerance) {
             // push to the otherside
             r[0] -= kTolerance;
@@ -90,7 +80,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
     //
     // calcualte y
     if (v[1] > 0.0) {
-        pdist = fSpacing[1] * 0.5f - trY;
+        pdist = fSpacing[1] - trY;
         if (pdist < kHalfTolerance) {
             r[1] += kTolerance;
             return DistanceToBoundary(r, v, i);
@@ -103,7 +93,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
         }
     }
     else if (v[1] < 0.0) {
-        pdist = fSpacing[1] * 0.5f + trY;
+        pdist =  trY;
         if (pdist < kHalfTolerance) {
             r[1] -= kTolerance;
             return DistanceToBoundary(r, v, i);
@@ -118,7 +108,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
     //
     // calculate z
     if (v[2] > 0.0) {
-        pdist = fSpacing[2] * 0.5f - trZ;
+        pdist = fSpacing[2] - trZ;
         if (pdist < kHalfTolerance) {
             r[2] += kTolerance;
             return DistanceToBoundary(r, v, i);
@@ -131,7 +121,7 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
         }
     }
     else if (v[2] < 0.0) {
-        pdist = fSpacing[2] * 0.5f + trZ;
+        pdist = trZ;
         if (pdist < kHalfTolerance) {
             r[2] -= kTolerance;
             return DistanceToBoundary(r, v, i);
@@ -142,44 +132,13 @@ float Geom::DistanceToBoundary(float* r, float* v, int* i) {
                 snext = stmp;
             }
         }
-    }
-
-	float step = DistanceToBoundaryOriginal(r2, v2, i2);
-
-    float r3[3], v3[3];
-    int i3[3];
-    for (int j = 0; j < 3; ++j) {
-        r3[j] = r[j];
-        v3[j] = v[j];
-        i3[j] = i[j];
-    }
-
-	// compare results
-	bool flag = false;
-	flag |= std::abs(snext - step) > 1.0E-3f;
-    flag |= i2[2] != i[2];
-	for (int j = 0; j < 3; ++j) {		
-		flag |= std::abs(r2[j] - r[j]) > 1.0E-3f;
-		flag |= std::abs(v2[j] - v[j]) > 1.0E-3f;
-	}
-
-    for (int j = 0; j < 3; ++j) {
-        i[j] = i2[j];
-        r[j] = r[j];
-        v[j] = v[j];
-    }
-    return step;
-
-	//assert(!flag);
+    }    
 
     return snext;
 }
 
 float Geom::DistanceToBoundaryOriginal(float* r, float* v, int* i) {
     static float kHalfTolerance = 0.5f * kTolerance;
-	static float fLBox = 1.0f;
-	static float fInvLBox = 1.0f / fLBox;
-	static float fLHalfBox = 0.5f * fLBox;
     //
     // Let's say that kExtent is the max extent of our geometry except the -z
     // direction in which it's only half box
@@ -287,13 +246,9 @@ float Geom::DistanceToBoundaryOriginal(float* r, float* v, int* i) {
 }
 
 void Geom::Score(float edep, int* ivoxel) {
-    /*int index = ivoxel[0] + ivoxel[1] * fDims[0] + ivoxel[2] * fDims[1] * fDims[0];
+    int index = ivoxel[0] + ivoxel[1] * fDims[0] + ivoxel[2] * fDims[1] * fDims[0];
     if(index < fDims[0]* fDims[1]* fDims[2])
-        fEndep[index] += edep;*/
-
-    if (ivoxel[2] < fDims[2]) {
-        fEndep[ivoxel[2] * fDims[1] * fDims[0]] += edep;
-    }
+        fEndep[index] += edep;
 }
 
 int Geom::GetMaterialIndexOriginal(int* i) {

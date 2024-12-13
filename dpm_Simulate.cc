@@ -87,20 +87,9 @@ int main(int argc, char *argv[]) {
   geom.InitGeom();
   geom.InitScore();
 
-  int nbatch = 1;
-  if (gNumPrimaries / nbatch == 0) {
-      gNumPrimaries = nbatch;
-  }
-  // nhist对nperbatch向上取整
-  int nperbatch = gNumPrimaries / nbatch;
-  if (gNumPrimaries % nperbatch != 0) {
-      nbatch++;
-  }
-  gNumPrimaries = nperbatch * nbatch;
-
   //
   // Execute the simulation according to the iput arguments
-  Simulate(gNumPrimaries, &theSource, gVoxelSize, theSimMaterialData, geom);
+  gNumPrimaries = Simulate(gNumPrimaries, &theSource, gVoxelSize, theSimMaterialData, geom);
 
   geom.Write(gOutputFileName, gNumPrimaries);
   //

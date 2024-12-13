@@ -216,15 +216,22 @@ void   Simulate_kernel(Geom& geom, float theElectronCut, float theGammaCut, SimM
 }
 
 
-void   Simulate(int nprimary, const Source* source, float lbox, SimMaterialData& matData, Geom& geom) {
+int   Simulate(int nprimary, const Source* source, float lbox, SimMaterialData& matData, Geom& geom) {
   //
   const float theElectronCut = matData.fElectronCut;
   const float theGammaCut    = matData.fGammaCut;
 
-  int nbatch = 1;
-  int nperbatch = nprimary / nbatch;
+  const int SeqSize = 65536;
 
-  int seq_size = 1;
+  int nbatch = 10;
+  int nperbatch = nprimary / nbatch;
+  // nhist对nperbatch向上取整
+  if (nprimary % nperbatch != 0) {
+      nbatch++;
+  }
+  nprimary = nperbatch * nbatch;
+
+  int seq_size = nperbatch > SeqSize ? SeqSize : nperbatch;
   int stack_size = seq_size * 16;
 
   h_PhotonStack.init(stack_size);
@@ -279,6 +286,8 @@ void   Simulate(int nprimary, const Source* source, float lbox, SimMaterialData&
 
       std::cout << "\n === End simulation of N = " << (ibatch + 1) * nperbatch << " events === \n" << std::endl;
   }
+
+  return nprimary;
 }
 
 

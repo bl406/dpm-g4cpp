@@ -75,7 +75,6 @@ public:
   float DistanceToBoundary(float* rLocation, float* dDirection, int* iVoxel);
   float DistanceToBoundaryOriginal(float* rLocation, float* dDirection, int* iVoxel);
 
-
   // Returns with the material index based on the input `iVoxel` voxel index
   // triplet.
   //
@@ -94,9 +93,7 @@ public:
 		else {
 			imat = fMedIndices[i[0] + i[1] * fDims[0] + i[2] * fDims[1] * fDims[0]];
 		}		 
-		int imat2 = GetMaterialIndexOriginal(i);
-		//assert(imat == imat2);
-		return imat2;
+		return imat;
   }
   int  GetMaterialIndexOriginal(int* iVoxel);
 
