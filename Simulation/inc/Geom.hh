@@ -106,7 +106,7 @@ private:
   // tolerance of the boundary computation [mm]
   const float         kTolerance = 1.0E-4f;
   // maximum extent of the geometry (except in the -z direction) in  [mm]
-  const float         kExtent    = 100.0f;
+  const float         kExtent    = 100.5f;
 
   // index of the predefined geometry
   int                  fPreDefinedGeomIndex;

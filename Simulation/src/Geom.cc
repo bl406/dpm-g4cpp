@@ -12,8 +12,8 @@ Geom::Geom(float lbox, SimMaterialData* matData, int geomIndex)
   fInvLBox(1.f/lbox),
   fLHalfBox(0.5f*lbox),
   fMaterialData(matData) {
-  fEdepHist.resize(20,0.0f);
-  fStepHist.resize(20,0.0f);
+  fEdepHist.resize(101,0.0f);
+  fStepHist.resize(101,0.0f);
 }
 
 
@@ -121,8 +121,7 @@ void Geom::Score(float edep, int iz) {
   if (iz>=0) {
     const std::size_t indx = (std::size_t)(iz);
     if (indx>=fEdepHist.size()) {
-      fEdepHist.resize(indx+10);
-      fStepHist.resize(indx+10);
+        return;
     }
     fEdepHist[indx] += edep;
     fStepHist[indx] += 1.0f;
