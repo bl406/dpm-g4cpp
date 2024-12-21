@@ -62,7 +62,7 @@ public:
 	
 	void release();
 
-	void add_n_primary(int n, const Source* source);
+	void add_n_primary(int n, Source* source);
 	void add_secondary(TrackStack* stack);
 
 	__host__ __device__

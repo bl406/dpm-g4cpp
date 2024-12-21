@@ -20,7 +20,7 @@
 #include "Random.hh"
 #include "Track.hh"
 #include "TrackStack.hh"
-#include "Source.hh"
+#include "Source.h"
 #include "config.hh"
 #include "error_checking.h"
 #include "Utils.h"
@@ -124,14 +124,14 @@ __global__ void Simulate_kernel()
 			//     - sample energy transfer to the photon (if any)
 		case 1: {
 			// perform bremsstrahlung interaction but only if E0 > gcut
-			if (track.fEkin > Geometry::GammaCut) {
+			if (track.fEkin > Geometry::d_GammaCut) {
 				PerformBrem(track);
 			}
 			// check if the post-interaction electron energy dropped
 			// below the tracking cut and stop tracking if yes
-			if (track.fEkin < Geometry::ElectronCut) {
+			if (track.fEkin < Geometry::d_ElectronCut) {
 				// deposit the whole energy and stop tracking
-				Geometry::Score(track.fEkin, track.fBoxIndx[2]);
+				Geometry::Score(track.fEkin, track.fBoxIndx);
 				track.fEkin = 0.0;
 				// perform annihilation in case of e+
 				if (track.fType == +1) {
@@ -156,7 +156,7 @@ __global__ void Simulate_kernel()
 			  //       Furthermore, note that Moller interaction is independent from Z
 		case 2: {
 			// perform ionisation (Moller) intraction but only if E0 > 2cut
-			if (track.fEkin > 2. * Geometry::ElectronCut) {
+			if (track.fEkin > 2. * Geometry::d_ElectronCut) {
 				PerformMoller(track);
 			}
 			// Resample #mfp left and interpolate the IMFP since the enrgy has been changed.
@@ -199,7 +199,7 @@ __global__ void Simulate_kernel()
 	} // end of tracking while loop
 }
 
-void Simulate(int nprimary, const Source* source)
+void Simulate(int nprimary, Source* source)
 {
     int nbatch = 10;
     int nperbatch = nprimary / nbatch;
@@ -269,6 +269,11 @@ void Simulate(int nprimary, const Source* source)
             cudaMemcpyFromSymbol(&h_ElectronStack, d_ElectronStack, sizeof(TrackStack));
             CudaCheckError();
         }
+
+		nblocks = divUp(Geometry::h_Nvoxels, THREADS_PER_BLOCK);
+		Geometry::AccumulateEndep<<<nblocks, THREADS_PER_BLOCK >>>();
+        CudaCheckError();
+
         std::cout << "\n === End simulation of N = " << (ibatch+1) * nperbatch << " events === \n" << std::endl;
     }
 }
@@ -286,7 +291,7 @@ __device__  int KeepTrackingElectron(Track& track, float& numTr1MFP, float& numM
     return 4;
   }
   //
-  const float theElectronCut = Geometry::ElectronCut;
+  const float theElectronCut = Geometry::d_ElectronCut;
   //
   // The Moller mfp energy dependence is not considered in DPM so we do the same:
   // we will keep using the Moller mfp evaluated at the initial energy for the reference
@@ -459,7 +464,7 @@ __device__  int KeepTrackingElectron(Track& track, float& numTr1MFP, float& numM
     // interaction (whatHappend={1,2,3}) OR to terminate the tracking (whatHappend=4)
     // NOTE: we need to score before calling DistanceToBoundary again because that
     //       might positon the particle to the next volume.
-    Geometry::Score(track.fEdep, track.fBoxIndx[2]);
+    Geometry::Score(track.fEdep, track.fBoxIndx);
     //
     // Compute distance to boundary if geometry limited this step:
     // - if geometry limited the step, the current position above is on a
@@ -487,8 +492,8 @@ __device__ void KeepTrackingPhoton(Track& track) {
   const float kEMC2    = 0.510991f;
   const float kInvEMC2 = 1.0/kEMC2;
   //
-  const float theElectronCut = Geometry::ElectronCut;
-  const float theGammaCut    = Geometry::GammaCut;
+  const float theElectronCut = Geometry::d_ElectronCut;
+  const float theGammaCut    = Geometry::d_GammaCut;
   //
   while (track.fEkin > 0.0f) {
     // get the global max-macroscopic cross section and use it for samppling the
@@ -544,7 +549,7 @@ __device__ void KeepTrackingPhoton(Track& track) {
       // insert the secondary e- only if ist energy is above the tracking cut
       // and deposit the corresponding enrgy otherwise
       if (elEner < theElectronCut) {
-        Geometry::Score(elEner, track.fBoxIndx[2]);
+        Geometry::Score(elEner, track.fBoxIndx);
         //Geometry::Score(elEner, track.fPosition[2]);
       } else {
         // insert secondary e- but first compute its cost
@@ -572,7 +577,7 @@ __device__ void KeepTrackingPhoton(Track& track) {
       // stop the photon if its energy dropepd below the photon absorption threshold
       track.fEkin = phEner;
       if (track.fEkin < theGammaCut) {
-         Geometry::Score(track.fEkin, track.fBoxIndx[2]);
+         Geometry::Score(track.fEkin, track.fBoxIndx);
         //Geometry::Score(track.fEkin, track.fPosition[2]);
         track.fEkin = 0.0;
         return;
@@ -606,7 +611,7 @@ __device__ void KeepTrackingPhoton(Track& track) {
       // insert the e- and e+ only if their energy is above the tracking cut
       // the e-
       if (e2 < theElectronCut) {
-        Geometry::Score(e2, track.fBoxIndx[2]);
+        Geometry::Score(e2, track.fBoxIndx);
         //Geometry::Score(e2, track.fPosition[2]);
       } else {
         Track& aTrack        = d_ElectronStack.push_one();
@@ -625,7 +630,7 @@ __device__ void KeepTrackingPhoton(Track& track) {
       }
       // the e+
       if (e1 < theElectronCut) {
-          Geometry::Score(e1, track.fBoxIndx[2]);
+          Geometry::Score(e1, track.fBoxIndx);
         //Geometry::Score(e1, track.fPosition[2]);
         PerformAnnihilation(track);
       } else {
@@ -650,7 +655,7 @@ __device__ void KeepTrackingPhoton(Track& track) {
 
     // if we are here then Photoelectric effect happens that absorbs the photon:
     // - score the current phton energy and stopp the photon
-    Geometry::Score(track.fEkin, track.fBoxIndx[2]);
+    Geometry::Score(track.fEkin, track.fBoxIndx);
     //Geometry::Score(track.fEkin, track.fPosition[2]);
     track.fEkin = 0.0;
   };

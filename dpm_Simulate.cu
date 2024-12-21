@@ -4,7 +4,7 @@
 #include "SimPhotonData.hh"
 
 #include "SimDPMLike.hh"
-#include "Source.hh"
+#include "Source.h"
 
 #include "Configuration.hh"
 #include "Geom.hh"
@@ -81,12 +81,12 @@ int main(int argc, char *argv[]) {
   theSimMaterialData.Load(gInputDataDir);
   CudaCheckError();
 
-  bool isElectron = (gPrimaryParticle=="e-");
-  SimpleSource theSource(gPrimaryEnergy, isElectron, gVoxelSize);
-
   // create the simple geometry
-  Geom geom(gVoxelSize, &theSimMaterialData, theConfig.fGeomIndex);
+  Geom geom(&theSimMaterialData, theConfig.fGeomIndex);
   geom.Initialize();
+
+  Source* source = initSource(&geom, "source"); 
+  source->Initialize();
 
   int nbatch = 10;
   if (gNumPrimaries / nbatch == 0) {
@@ -99,12 +99,11 @@ int main(int argc, char *argv[]) {
   }
   gNumPrimaries = nperbatch * nbatch;
 
-  Simulate(gNumPrimaries, &theSource);
-  
-  cudaMemcpy(geom.fEdepHist.data(), Geometry::EdepHist, geom.fEdepHist.size() * sizeof(float), cudaMemcpyDeviceToHost);
-  cudaMemcpy(geom.fStepHist.data(), Geometry::StepHist, geom.fStepHist.size() * sizeof(float), cudaMemcpyDeviceToHost);
+  Simulate(gNumPrimaries, source);
 
-  geom.Write(gOutputFileName, gNumPrimaries);
+  geom.Write(gOutputFileName, gNumPrimaries, nbatch);
+
+  cleanSource();
 
   return 0;
 }

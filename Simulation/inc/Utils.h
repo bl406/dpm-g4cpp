@@ -4,6 +4,7 @@
 #include <array>
 #include <cuda_runtime.h>
 #include "error_checking.h"
+#include "config.hh"
 
 template <class T>
 std::array<double, 2> CalMeanAndStd(const std::vector<T>& data) {

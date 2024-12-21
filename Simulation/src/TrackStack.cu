@@ -1,6 +1,7 @@
 #include "TrackStack.hh"
 #include <cassert>
-#include "Source.hh"
+#include "Source.h"
+#include "Utils.h"
 
 TrackStack h_PhotonStack;
 TrackStack h_ElectronStack;
@@ -14,6 +15,7 @@ void TrackStack::init(int maxsz) {
 	fTop = -1;
 	fCapacity = maxsz;
 	cudaMalloc(&fData, fCapacity * sizeof(Track));
+	CudaCheckError();
 }
 
 void TrackStack::release() {
@@ -42,13 +44,14 @@ void TrackSeq::init(int maxsz) {
 	fSize = 0;
 	fCapacity = maxsz;
 	cudaMalloc(&fData, fCapacity * sizeof(Track));
+	CudaCheckError();
 }
 
 void TrackSeq::release() {
 	cudaFree(fData);
 }
 
-void TrackSeq::add_n_primary(int n, const Source* source) {
+void TrackSeq::add_n_primary(int n, Source* source) {
 	source->InitTracks(h_TrackSeq.fData + h_TrackSeq.fSize, n);
 	fSize += n;
 }

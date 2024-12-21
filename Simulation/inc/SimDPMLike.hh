@@ -45,7 +45,7 @@ class Track;
 // The resulted depth dose histogram of the simulation is written into the `hist.sim`
 // file at the termination of the simulation.
 //
-void  Simulate(int nprimary, const Source* source);
+void  Simulate(int nprimary, Source* source);
 
 
 
