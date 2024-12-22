@@ -1,23 +1,15 @@
 #pragma once
 
-#include "enbin_source.h"
+#include "source.h"
+#include "egs_alias_table.h"
 #include <vector>
 
 class Geom;
 
-class ConeSource : public EnbinSource {
+class ConeSource : public Source {
 public:
 	ConeSource(Geom* geom);
-	~ConeSource() {};
-
-	// setHistory
-	void setHistory(
-		int& iq, float& e,
-		float& x, float& y, float& z,
-		int& ix, int& iy, int& iz,
-		float& u, float& v, float& w, float& wt,
-		float& dnear
-	);
+	~ConeSource();
 
 	float normalized_factor() {
 		return 1.0;
@@ -33,12 +25,9 @@ protected:
 	float phi;
 	float phicol;
 
-	std::vector<float> r;
-	std::vector<float> p_r;
 	float sad;
 	float spd; // Source to scoring plane
 
-	float radius; // cone radius
-	int rad_idx_old;
-	float f_old;
+	EGS_AliasTable alias_table;
+	float radius;
 };

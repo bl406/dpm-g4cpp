@@ -19,9 +19,9 @@ const EGS_I64 loopMax = (EGS_I64)1e10;
 * when comparing two floating point numbers that may be close
 * in value.It is set to 4 times the machine epsilon(2 bits away),
 * to allow for some leeway in floating point error accumulation.
-* It is meant to be used as a float guard for comparisons
+* It is meant to be used as a double guard for comparisons
 * involving numbers that are of order 1.0; typically used to
-* test if a float x vanishes, as in fabs(x) < epsilon.
+* test if a double x vanishes, as in fabs(x) < epsilon.
  */
 #ifdef SINGLE
 const EGS_Float epsilon = 1.0 / (1 << 21);
@@ -304,8 +304,8 @@ EGS_SimpleAliasTable::EGS_SimpleAliasTable(int N, const EGS_Float *f) : n(0) {
 
     // local variables
     int i;
-    float sum = 0;
-    float *p = new EGS_Float [n];
+    EGS_Float sum = 0;
+    EGS_Float*p = new EGS_Float [n];
 
     // initialize distribution and bin aliases, and compute histogram sum
     for (i=0; i<n; i++) {

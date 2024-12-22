@@ -34,24 +34,33 @@ extern __device__ void cal_entrance_point(float phi, float theta, float phicol,
 	int& ix, int& iy, int& iz,
     float& u, float& v, float& w);
 
-enum SourceType {
-    COLLIPOINT_SOURCE = 1,
-	CONE_SOURCE
-};
+namespace Spectrum {
+	extern __device__ float getEkin();
+}
 
 class Source {
 public:
-	Source(Geom* geom) : geometry(geom){}
-    virtual ~Source() {}
+	enum { MONOENERGETIC, SPECTRUM } source_type;
+	enum SourceType { COLLIPOINT_SOURCE = 1, CONE_SOURCE };
+
+	Source(Geom* geom);
+	virtual ~Source();
     
     virtual void InitTracks(Track* track, int n) = 0;
 
-    virtual void Initialize() = 0;
+    virtual void Initialize();
 
 	virtual float normalized_factor() = 0;
-
 protected:
     Geom* geometry;	
+
+	/* For monoenergetic source */
+	float energy;
+
+	/* For spectrum */
+	float deltak;              // number of elements in inverse CDF
+	float* cdfinv1;            // energy value of bin
+	float* cdfinv2;            // prob. that particle has energy xi
 };
 
 

@@ -1,8 +1,10 @@
 #pragma once
 
-#include "egs_config1.h"
 #include <vector>
 #include "Random.hh"
+
+#define EGS_Float double
+#define EGS_I64 long long
 
 typedef EGS_Float(*EGS_AtFunction)(EGS_Float,void *);
 
@@ -110,6 +112,18 @@ public:
         return xi[n-1];
     };
 
+	int* getBin() const {
+		return bin;
+	}
+	EGS_Float* getXi() const {
+		return xi;
+	}
+	EGS_Float* getWi() const {
+		return wi;
+	}
+	int getNp() const {
+		return np;
+	}
 private:
 
     int       n;     //!< number of subintervals

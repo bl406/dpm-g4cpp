@@ -7,8 +7,6 @@ class Geom;
 /* ISOURCE = 3: Point source from the front with rectangluar collimation */
 class CollipntSource : public Source {
 public:
-    enum { MONOENERGETIC, SPECTRUM } source_type;
-
     CollipntSource(Geom* geom);
 
     ~CollipntSource();
@@ -20,20 +18,8 @@ public:
     }
 
 	void Initialize() override; 
-
 private:
-    
-    char spectrum_file[128];    // spectrum file path
-
     int charge;                 // 0 : photons, -1 : electron, +1 : positron
-
-    /* For monoenergetic source */
-    float energy;
-
-    /* For spectrum */
-    float deltak;              // number of elements in inverse CDF
-    float* cdfinv1;            // energy value of bin
-    float* cdfinv2;            // prob. that particle has energy xi
 
     /* Source shape information */
     float ssd;                 // distance of point source to phantom surface

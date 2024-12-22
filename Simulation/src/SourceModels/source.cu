@@ -15,8 +15,38 @@
 #include "omc_utilities.h"
 #include "geom.hh"
 #include "Track.hh"
+#include "Random.hh"
 
 class Source *source;
+
+namespace Spectrum {
+    __constant__ int d_deltak;
+	__constant__ int d_srctype;
+    __constant__ float d_cdfinv1[INVDIM];
+    __constant__ float d_cdfinv2[INVDIM];
+	__constant__ float d_energy;
+
+    __device__ float getEkin(){
+        /* Get primary particle energy */
+        float ein = 0.0f;
+        switch (d_srctype) {
+        case CollipntSource::MONOENERGETIC:
+        default:
+            ein = d_energy;
+            break;
+        case CollipntSource::SPECTRUM:
+            /* Sample initial energy from spectrum data */
+            float rnno1 = CuRand::rand();
+            float rnno2 = CuRand::rand();
+
+            /* Sample bin number in order to select particle energy */
+            int k = (int)fmin(d_deltak * rnno1, d_deltak - 1.0f);
+            ein = d_cdfinv1[k] + rnno2 * d_cdfinv2[k];
+            break;          
+        }
+		return ein;
+    }
+}
 
 Source* initSource(Geom* geom, std::string srcFn) {
     char buffer[BUFFER_SIZE];
@@ -28,13 +58,13 @@ Source* initSource(Geom* geom, std::string srcFn) {
         printf("Can not find 'isource' key on input file.\n");
         exit(EXIT_FAILURE);
     }
-    SourceType isource = (SourceType)atoi(buffer);
+    Source::SourceType isource = (Source::SourceType)atoi(buffer);
 
     switch (isource) {
-        case COLLIPOINT_SOURCE:
+        case Source::COLLIPOINT_SOURCE:
             source = new CollipntSource(geom);
         break;
-        case CONE_SOURCE:
+        case Source::CONE_SOURCE:
 			//source = new ConeSource(geom);
 			break;
          default:
@@ -45,9 +75,179 @@ Source* initSource(Geom* geom, std::string srcFn) {
     return source;
 }
 
+Source::Source(Geom* geom) {
+	this->geometry = geom;
+
+    char buffer[BUFFER_SIZE];
+
+    /* Get source file path from input data */
+    source_type = SPECTRUM;    /* energy spectrum as default case */
+    energy = 6.f;
+    /* First check of spectrum file was given as an input */
+    if (getInputValue(buffer, "spectrum file") != 1) {
+        printf("Can not find 'spectrum file' key on input file.\n");
+        printf("Switch to monoenergetic case.\n");
+        source_type = MONOENERGETIC;    /* monoenergetic source */
+    }
+
+    switch (source_type) {
+    case MONOENERGETIC:
+        if (getInputValue(buffer, "mono energy") != 1) {
+            printf("Can not find 'mono energy' key on input file.\n");
+            exit(EXIT_FAILURE);
+        }
+        energy = (float)atof(buffer);
+        printf("%f monoenergetic source\n", energy);
+        break;
+
+    case SPECTRUM:
+        char spectrum_file[128];    // spectrum file path
+        removeSpaces(spectrum_file, buffer);
+
+        /* Open .source file */
+        FILE* fp;
+
+        if ((fp = fopen(spectrum_file, "r")) == NULL) {
+            printf("Unable to open file: %s\n", spectrum_file);
+            exit(EXIT_FAILURE);
+        }
+
+        printf("Path to spectrum file : %s\n", spectrum_file);
+
+        /* Read spectrum file title */
+        fgets(buffer, BUFFER_SIZE, fp);
+        printf("Spectrum file title: %s", buffer);
+
+        /* Read number of bins and spectrum type */
+        float enmin;   /* lower energy of first bin */
+        int nensrc;     /* number of energy bins in spectrum histogram */
+        int imode;      /* 0 : histogram counts/bin, 1 : counts/MeV*/
+
+        fgets(buffer, BUFFER_SIZE, fp);
+        sscanf(buffer, "%d %f %d", &nensrc, &enmin, &imode);
+
+        if (nensrc > MXEBIN) {
+            printf("Number of energy bins = %d is greater than max allowed = "
+                "%d. Increase MXEBIN macro!\n", nensrc, MXEBIN);
+            exit(EXIT_FAILURE);
+        }
+
+        /* upper energy of bin i in MeV */
+        float* ensrcd = (float*)malloc(nensrc * sizeof(float));
+        /* prob. of finding a particle in bin i */
+        float* srcpdf = (float*)malloc(nensrc * sizeof(float));
+
+        /* Read spectrum information */
+        for (int i = 0; i < nensrc; i++) {
+            fgets(buffer, BUFFER_SIZE, fp);
+            sscanf(buffer, "%f %f", &ensrcd[i], &srcpdf[i]);
+        }
+        printf("Have read %d input energy bins from spectrum file.\n", nensrc);
+
+        if (imode == 0) {
+            printf("Counts/bin assumed.\n");
+        }
+        else if (imode == 1) {
+            printf("Counts/MeV assumed.\n");
+            srcpdf[0] *= (ensrcd[0] - enmin);
+            for (int i = 1; i < nensrc; i++) {
+                srcpdf[i] *= (ensrcd[i] - ensrcd[i - 1]);
+            }
+        }
+        else {
+            printf("Invalid mode number in spectrum file.");
+            exit(EXIT_FAILURE);
+        }
+
+        float ein = ensrcd[nensrc - 1];
+        printf("Energy ranges from %f to %f MeV\n", enmin, ein);
+
+        /* Initialization routine to calculate the inverse of the
+        cumulative probability distribution that is used during execution to
+        sample the incident particle energy. */
+        float* srccdf = (float*)malloc(nensrc * sizeof(float));
+
+        srccdf[0] = srcpdf[0];
+        for (int i = 1; i < nensrc; i++) {
+            srccdf[i] = srccdf[i - 1] + srcpdf[i];
+        }
+
+        float fnorm = 1.0f / srccdf[nensrc - 1];
+        int binsok = 0;
+        deltak = INVDIM; /* number of elements in inverse CDF */
+        float gridsz = 1.0f / deltak;
+
+        for (int i = 0; i < nensrc; i++) {
+            srccdf[i] *= fnorm;
+            if (i == 0) {
+                if (srccdf[0] <= 3.0f * gridsz) {
+                    binsok = 1;
+                }
+            }
+            else {
+                if ((srccdf[i] - srccdf[i - 1]) < 3.0f * gridsz) {
+                    binsok = 1;
+                }
+            }
+        }
+
+        if (binsok != 0) {
+            printf("Warning!, some of normalized bin probabilities are "
+                "so small that bins may be missed.\n");
+        }
+
+        /* Calculate cdfinv. This array allows the rapid sampling for the
+        energy by precomputing the results for a fine grid. */
+        cdfinv1 = (float*)malloc(size_t(deltak * sizeof(float)));
+        cdfinv2 = (float*)malloc(size_t(deltak * sizeof(float)));
+        float ak;
+
+        for (int k = 0; k < deltak; k++) {
+            ak = (float)k * gridsz;
+            int i;
+
+            for (i = 0; i < nensrc; i++) {
+                if (ak <= srccdf[i]) {
+                    break;
+                }
+            }
+
+            /* We should fall here only through the above break sentence. */
+            if (i != 0) {
+                cdfinv1[k] = ensrcd[i - 1];
+            }
+            else {
+                cdfinv1[k] = enmin;
+            }
+            cdfinv2[k] = ensrcd[i] - cdfinv1[k];
+        }
+
+        /* Cleaning */
+        fclose(fp);
+        free(ensrcd);
+        free(srcpdf);
+        free(srccdf);
+
+        break;
+    }
+}
+
+Source::~Source() {
+	free(cdfinv1);
+	free(cdfinv2);
+}
+
+void Source::Initialize() {
+    int ndeltak = (int)deltak;
+	cudaMemcpyToSymbol(Spectrum::d_energy, &energy, sizeof(float));
+	cudaMemcpyToSymbol(Spectrum::d_srctype, &source_type, sizeof(int));
+	cudaMemcpyToSymbol(Spectrum::d_deltak, &ndeltak, sizeof(int));
+	cudaMemcpyToSymbol(Spectrum::d_cdfinv1, cdfinv1, sizeof(float) * ndeltak);
+	cudaMemcpyToSymbol(Spectrum::d_cdfinv2, cdfinv2, sizeof(float) * ndeltak);
+}
+
 void cleanSource() {
     delete source;
-
     return;
 }
 
